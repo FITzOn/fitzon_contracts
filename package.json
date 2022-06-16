@@ -1,0 +1,18 @@
+{
+  "name": "fition_contracts",
+  "version": "1.0.0",
+  "description": "Smart contracts for Fition",
+  "author": "Jones Chi",
+  "scripts": {
+    "lint": "solhint 'contracts/**/*.sol'",
+    "build": "truffle compile",
+    "test": "truffle test"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@openzeppelin/contracts": "^4.6.0",
+    "@openzeppelin/contracts-upgradeable": "^4.6.0",
+    "@openzeppelin/test-helpers": "^0.5.15",
+    "@openzeppelin/truffle-upgrades": "^1.15.0"
+  }
+}
