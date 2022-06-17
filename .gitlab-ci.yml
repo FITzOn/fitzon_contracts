@@ -1,0 +1,23 @@
+stages:
+  - linter
+  - build
+
+linter:
+  image: node:14.19.3-alpine
+  tags:
+    - docker
+  stage: linter
+  script:
+    - export PATH=$PATH:./node_modules/.bin
+    - npm install
+    - npm run lint
+
+build:
+  image: node:14.19.3-alpine
+  tags:
+    - docker
+  stage: build
+  script:
+    - export PATH=$PATH:./node_modules/.bin
+    - npm install
+    - npm run build
