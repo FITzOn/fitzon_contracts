@@ -5,7 +5,6 @@ import "@openzeppelin/contracts-upgradeable/token/ERC721/ERC721Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC721/extensions/ERC721EnumerableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC721/extensions/ERC721BurnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC721/extensions/ERC721RoyaltyUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/token/ERC721/extensions/ERC721PausableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
@@ -15,7 +14,6 @@ contract FitionWearbles is Initializable,
         OwnableUpgradeable,
         ERC721EnumerableUpgradeable,
         ERC721BurnableUpgradeable,
-        ERC721PausableUpgradeable,
         ERC721RoyaltyUpgradeable {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
@@ -33,7 +31,6 @@ contract FitionWearbles is Initializable,
         __ERC721Enumerable_init();
         __ERC721Burnable_init();
         __ERC721Royalty_init();
-        __ERC721Pausable_init();
   
         _ethToken = __token;
     }
@@ -50,8 +47,16 @@ contract FitionWearbles is Initializable,
         _safeMint(to, tokenId);
     }
 
+    function setPublicMint(bool _state) external onlyOwner {
+        _publicMint = _state;
+    }
+
     function setPublicMintPrice(uint256 price) external onlyOwner {
         _publicMintPrice = price;
+    }
+
+    function setRevealed(bool _state) external onlyOwner {
+        _revealed = _state;
     }
 
     function setMerkleRoot(bytes32 root) external onlyOwner {
@@ -74,20 +79,16 @@ contract FitionWearbles is Initializable,
         _setTokenRoyalty(tokenId, receiver, feeNumerator);
     }
   
-    function setRevealed(bool _state) external onlyOwner {
-        _revealed = _state;
-    }
-  
-    function _baseURI() internal view override returns (string memory) {
-        return _baseTokenURI;
-    }
-  
     function setBaseURI(string memory baseTokenURI) external onlyOwner {
         _baseTokenURI = baseTokenURI;
     }
   
     function setMysteryBoxURI(string memory mysteryBoxURI) external onlyOwner {
         _mysteryBoxURI = mysteryBoxURI;
+    }
+
+    function _baseURI() internal view override returns (string memory) {
+        return _baseTokenURI;
     }
   
     function tokenURI(uint256 tokenId) public view virtual override returns (string memory) {
@@ -100,14 +101,6 @@ contract FitionWearbles is Initializable,
         return ERC721Upgradeable.tokenURI(tokenId);
     }
   
-    function pause() external virtual onlyOwner {
-        _pause();
-    }
-  
-    function unpause() external virtual onlyOwner {
-        _unpause();
-    }
-  
     function _burn(uint256 tokenId)
             internal virtual
             override(ERC721Upgradeable,
@@ -118,8 +111,7 @@ contract FitionWearbles is Initializable,
     function _beforeTokenTransfer(address from, address to, uint256 tokenId)
             internal virtual
             override(ERC721Upgradeable,
-                     ERC721EnumerableUpgradeable,
-                     ERC721PausableUpgradeable) {
+                     ERC721EnumerableUpgradeable) {
         super._beforeTokenTransfer(from, to, tokenId);
     }
   
