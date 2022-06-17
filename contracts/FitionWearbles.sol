@@ -9,18 +9,16 @@ import "@openzeppelin/contracts-upgradeable/token/ERC721/extensions/ERC721Pausab
 import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/access/AccessControlEnumerableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/cryptography/MerkleProofUpgradeable.sol";
 
 contract FitionWearbles is Initializable,
-        AccessControlEnumerableUpgradeable,
+        OwnableUpgradeable,
         ERC721EnumerableUpgradeable,
         ERC721BurnableUpgradeable,
         ERC721PausableUpgradeable,
         ERC721RoyaltyUpgradeable {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
-    bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
     IERC20Upgradeable public _ethToken;
     string private _baseTokenURI;
     string private _mysteryBoxURI;
@@ -30,20 +28,17 @@ contract FitionWearbles is Initializable,
     uint256 private _publicMintPrice;
   
     function initialize(string memory __name, string memory __symbol, IERC20Upgradeable __token) public initializer {
-        __AccessControlEnumerable_init();
+        __Ownable_init();
         __ERC721_init(__name, __symbol);
         __ERC721Enumerable_init();
         __ERC721Burnable_init();
         __ERC721Royalty_init();
         __ERC721Pausable_init();
   
-        _setupRole(DEFAULT_ADMIN_ROLE, _msgSender());
-        _setupRole(MINTER_ROLE, _msgSender());
         _ethToken = __token;
     }
   
-    function mint(address to, uint256 tokenId) external {
-        require(hasRole(MINTER_ROLE, _msgSender()), "Must have minter role to mint");
+    function mint(address to, uint256 tokenId) external onlyOwner {
         _safeMint(to, tokenId);
     }
 
@@ -55,13 +50,11 @@ contract FitionWearbles is Initializable,
         _safeMint(to, tokenId);
     }
 
-    function setPublicMintPrice(uint256 price) external {
-        require(hasRole(DEFAULT_ADMIN_ROLE, _msgSender()), "Must have admin role to set public mint price");
+    function setPublicMintPrice(uint256 price) external onlyOwner {
         _publicMintPrice = price;
     }
 
-    function setMerkleRoot(bytes32 root) external {
-        require(hasRole(DEFAULT_ADMIN_ROLE, _msgSender()), "Must have admin role to set merkle root");
+    function setMerkleRoot(bytes32 root) external onlyOwner {
         _merkleRoot = root;
     }
 
@@ -73,18 +66,15 @@ contract FitionWearbles is Initializable,
         return MerkleProofUpgradeable.verify(proof, _merkleRoot, leaf);
     }
 
-    function setDefaultRoyalty(address receiver, uint96 feeNumerator) external {
-        require(hasRole(DEFAULT_ADMIN_ROLE, _msgSender()), "Must have admin role to set default royalty");
+    function setDefaultRoyalty(address receiver, uint96 feeNumerator) external onlyOwner {
         _setDefaultRoyalty(receiver, feeNumerator);
     }
 
-    function setTokenRoyalty(uint256 tokenId, address receiver, uint96 feeNumerator) external {
-        require(hasRole(DEFAULT_ADMIN_ROLE, _msgSender()), "Must have admin role to set default royalty");
+    function setTokenRoyalty(uint256 tokenId, address receiver, uint96 feeNumerator) external onlyOwner {
         _setTokenRoyalty(tokenId, receiver, feeNumerator);
     }
   
-    function setRevealed(bool _state) external {
-        require(hasRole(DEFAULT_ADMIN_ROLE, _msgSender()), "Must have admin role to revealed flag");
+    function setRevealed(bool _state) external onlyOwner {
         _revealed = _state;
     }
   
@@ -92,13 +82,11 @@ contract FitionWearbles is Initializable,
         return _baseTokenURI;
     }
   
-    function setBaseURI(string memory baseTokenURI) external {
-        require(hasRole(DEFAULT_ADMIN_ROLE, _msgSender()), "Must have admin role to set URI");
+    function setBaseURI(string memory baseTokenURI) external onlyOwner {
         _baseTokenURI = baseTokenURI;
     }
   
-    function setMysteryBoxURI(string memory mysteryBoxURI) external {
-        require(hasRole(DEFAULT_ADMIN_ROLE, _msgSender()), "Must have admin role to set URI");
+    function setMysteryBoxURI(string memory mysteryBoxURI) external onlyOwner {
         _mysteryBoxURI = mysteryBoxURI;
     }
   
@@ -112,13 +100,11 @@ contract FitionWearbles is Initializable,
         return ERC721Upgradeable.tokenURI(tokenId);
     }
   
-    function pause() external virtual {
-        require(hasRole(DEFAULT_ADMIN_ROLE, _msgSender()), "Must have admin role to pause");
+    function pause() external virtual onlyOwner {
         _pause();
     }
   
-    function unpause() external virtual {
-        require(hasRole(DEFAULT_ADMIN_ROLE, _msgSender()), "Must have admin role to unpause");
+    function unpause() external virtual onlyOwner {
         _unpause();
     }
   
@@ -139,8 +125,7 @@ contract FitionWearbles is Initializable,
   
     function supportsInterface(bytes4 interfaceId)
             public view virtual
-            override(AccessControlEnumerableUpgradeable,
-                     ERC721Upgradeable,
+            override(ERC721Upgradeable,
                      ERC721EnumerableUpgradeable,
                      ERC721RoyaltyUpgradeable)
             returns (bool) {
