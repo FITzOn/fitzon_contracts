@@ -8,6 +8,7 @@ import "@openzeppelin/contracts-upgradeable/token/ERC721/extensions/ERC721Royalt
 import "@openzeppelin/contracts-upgradeable/token/ERC721/extensions/ERC721PausableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/AccessControlEnumerableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/cryptography/MerkleProofUpgradeable.sol";
 
 contract FitionWearbles is Initializable,
         AccessControlEnumerableUpgradeable,
@@ -21,9 +22,7 @@ contract FitionWearbles is Initializable,
     string private _mysteryBoxURI;
     bool private _revealed;
     bool private _publicMint;
-
-    // reserved space
-    uint256[48] private __gap;
+    bytes32 private _merkleRoot;
   
     function initialize(string memory __name, string memory __symbol) public initializer {
         __AccessControlEnumerable_init();
@@ -37,14 +36,33 @@ contract FitionWearbles is Initializable,
         _setupRole(MINTER_ROLE, _msgSender());
     }
   
-    function mint(address to, uint256 tokenId) public {
-        if (_publicMint == false) {
-            require(hasRole(MINTER_ROLE, _msgSender()), "Must have minter role to mint");
-        }
+    function mint(address to, uint256 tokenId) external {
+        require(hasRole(MINTER_ROLE, _msgSender()), "Must have minter role to mint");
         _safeMint(to, tokenId);
     }
+
+    function whileListMint(address to, uint256 tokenId, bytes32[] calldata proof) external {
+        require(_publicMint == true, "Public minting is not started yet");
+        require(_verify(_leaf(to, tokenId), proof), "Invalid merkle proof");
+        _safeMint(to, tokenId);
+    }
+
+    function setMerkleRoot(bytes32 root) external {
+        require(hasRole(DEFAULT_ADMIN_ROLE, _msgSender()), "Must have admin role to set merkle root");
+        _merkleRoot = root;
+    }
+
+    function _leaf(address account, uint256 tokenId) private pure returns (bytes32)
+    {
+        return keccak256(abi.encodePacked(account, tokenId));
+    }
+
+    function _verify(bytes32 leaf, bytes32[] memory proof) private view returns (bool)
+    {
+        return MerkleProofUpgradeable.verify(proof, _merkleRoot, leaf);
+    }
   
-    function setRevealed(bool _state) public {
+    function setRevealed(bool _state) external {
         require(hasRole(DEFAULT_ADMIN_ROLE, _msgSender()), "Must have admin role to revealed flag");
         _revealed = _state;
     }
@@ -53,12 +71,12 @@ contract FitionWearbles is Initializable,
         return _baseTokenURI;
     }
   
-    function setBaseURI(string memory baseTokenURI) public {
+    function setBaseURI(string memory baseTokenURI) external {
         require(hasRole(DEFAULT_ADMIN_ROLE, _msgSender()), "Must have admin role to set URI");
         _baseTokenURI = baseTokenURI;
     }
   
-    function setMysteryBoxURI(string memory mysteryBoxURI) public {
+    function setMysteryBoxURI(string memory mysteryBoxURI) external {
         require(hasRole(DEFAULT_ADMIN_ROLE, _msgSender()), "Must have admin role to set URI");
         _mysteryBoxURI = mysteryBoxURI;
     }
