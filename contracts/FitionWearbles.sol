@@ -6,6 +6,8 @@ import "@openzeppelin/contracts-upgradeable/token/ERC721/extensions/ERC721Enumer
 import "@openzeppelin/contracts-upgradeable/token/ERC721/extensions/ERC721BurnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC721/extensions/ERC721RoyaltyUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC721/extensions/ERC721PausableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/AccessControlEnumerableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/cryptography/MerkleProofUpgradeable.sol";
@@ -16,15 +18,18 @@ contract FitionWearbles is Initializable,
         ERC721BurnableUpgradeable,
         ERC721PausableUpgradeable,
         ERC721RoyaltyUpgradeable {
+    using SafeERC20Upgradeable for IERC20Upgradeable;
 
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
+    IERC20Upgradeable public _ethToken;
     string private _baseTokenURI;
     string private _mysteryBoxURI;
     bool private _revealed;
     bool private _publicMint;
     bytes32 private _merkleRoot;
+    uint256 private _publicMintPrice;
   
-    function initialize(string memory __name, string memory __symbol) public initializer {
+    function initialize(string memory __name, string memory __symbol, IERC20Upgradeable __token) public initializer {
         __AccessControlEnumerable_init();
         __ERC721_init(__name, __symbol);
         __ERC721Enumerable_init();
@@ -34,6 +39,7 @@ contract FitionWearbles is Initializable,
   
         _setupRole(DEFAULT_ADMIN_ROLE, _msgSender());
         _setupRole(MINTER_ROLE, _msgSender());
+        _ethToken = __token;
     }
   
     function mint(address to, uint256 tokenId) external {
@@ -41,10 +47,17 @@ contract FitionWearbles is Initializable,
         _safeMint(to, tokenId);
     }
 
-    function whileListMint(address to, uint256 tokenId, bytes32[] calldata proof) external {
+    function whiteListMint(address to, uint256 tokenId, bytes32[] calldata proof) external {
         require(_publicMint == true, "Public minting is not started yet");
+        require(_ethToken.allowance(msg.sender, address(this)) >= _publicMintPrice, "Allowance must larger than price");
         require(_verify(_leaf(to, tokenId), proof), "Invalid merkle proof");
+        _ethToken.safeTransferFrom(msg.sender, address(this), _publicMintPrice);
         _safeMint(to, tokenId);
+    }
+
+    function setPublicMintPrice(uint256 price) external {
+        require(hasRole(DEFAULT_ADMIN_ROLE, _msgSender()), "Must have admin role to set public mint price");
+        _publicMintPrice = price;
     }
 
     function setMerkleRoot(bytes32 root) external {
@@ -52,14 +65,22 @@ contract FitionWearbles is Initializable,
         _merkleRoot = root;
     }
 
-    function _leaf(address account, uint256 tokenId) private pure returns (bytes32)
-    {
+    function _leaf(address account, uint256 tokenId) private pure returns (bytes32) {
         return keccak256(abi.encodePacked(account, tokenId));
     }
 
-    function _verify(bytes32 leaf, bytes32[] memory proof) private view returns (bool)
-    {
+    function _verify(bytes32 leaf, bytes32[] memory proof) private view returns (bool) {
         return MerkleProofUpgradeable.verify(proof, _merkleRoot, leaf);
+    }
+
+    function setDefaultRoyalty(address receiver, uint96 feeNumerator) external {
+        require(hasRole(DEFAULT_ADMIN_ROLE, _msgSender()), "Must have admin role to set default royalty");
+        _setDefaultRoyalty(receiver, feeNumerator);
+    }
+
+    function setTokenRoyalty(uint256 tokenId, address receiver, uint96 feeNumerator) external {
+        require(hasRole(DEFAULT_ADMIN_ROLE, _msgSender()), "Must have admin role to set default royalty");
+        _setTokenRoyalty(tokenId, receiver, feeNumerator);
     }
   
     function setRevealed(bool _state) external {
