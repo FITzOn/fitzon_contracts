@@ -91,12 +91,12 @@ contract FitionWearbles is Initializable,
         return ERC721Upgradeable.tokenURI(tokenId);
     }
   
-    function pause() public virtual {
+    function pause() external virtual {
         require(hasRole(DEFAULT_ADMIN_ROLE, _msgSender()), "Must have admin role to pause");
         _pause();
     }
   
-    function unpause() public virtual {
+    function unpause() external virtual {
         require(hasRole(DEFAULT_ADMIN_ROLE, _msgSender()), "Must have admin role to unpause");
         _unpause();
     }
