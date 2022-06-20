@@ -1,5 +1,6 @@
 stages:
   - linter
+  - test
   - build
 
 linter:
@@ -8,9 +9,19 @@ linter:
     - docker
   stage: linter
   script:
-    - export PATH=$PATH:./node_modules/.bin
     - npm install
     - npm run lint
+    - npx eslint test/*
+
+test:
+  image: node:14.19.3-alpine
+  tags:
+    - docker
+  stage: test
+  script:
+    - npm install
+    - npx ganache-cli -p 9545 > /dev/null &
+    - npm test
 
 build:
   image: node:14.19.3-alpine
@@ -18,6 +29,5 @@ build:
     - docker
   stage: build
   script:
-    - export PATH=$PATH:./node_modules/.bin
     - npm install
     - npm run build
