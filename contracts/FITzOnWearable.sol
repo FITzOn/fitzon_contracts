@@ -10,7 +10,7 @@ import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeab
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/cryptography/MerkleProofUpgradeable.sol";
 
-contract FitionWearbles is Initializable,
+contract FITzOnWearable is Initializable,
         OwnableUpgradeable,
         ERC721EnumerableUpgradeable,
         ERC721BurnableUpgradeable,
@@ -24,17 +24,17 @@ contract FitionWearbles is Initializable,
     bool private _publicMint;
     bytes32 private _merkleRoot;
     uint256 private _publicMintPrice;
-  
+
     function initialize(string memory __name, string memory __symbol, IERC20Upgradeable __token) public initializer {
         __Ownable_init();
         __ERC721_init(__name, __symbol);
         __ERC721Enumerable_init();
         __ERC721Burnable_init();
         __ERC721Royalty_init();
-  
+
         _ethToken = __token;
     }
-  
+
     function mint(address to, uint256 tokenId) external onlyOwner {
         _safeMint(to, tokenId);
     }
@@ -78,11 +78,11 @@ contract FitionWearbles is Initializable,
     function setTokenRoyalty(uint256 tokenId, address receiver, uint96 feeNumerator) external onlyOwner {
         _setTokenRoyalty(tokenId, receiver, feeNumerator);
     }
-  
+
     function setBaseURI(string memory baseTokenURI) external onlyOwner {
         _baseTokenURI = baseTokenURI;
     }
-  
+
     function setMysteryBoxURI(string memory mysteryBoxURI) external onlyOwner {
         _mysteryBoxURI = mysteryBoxURI;
     }
@@ -90,31 +90,31 @@ contract FitionWearbles is Initializable,
     function _baseURI() internal view override returns (string memory) {
         return _baseTokenURI;
     }
-  
+
     function tokenURI(uint256 tokenId) public view virtual override returns (string memory) {
         require(_exists(tokenId), "ERC721Metadata: URI query for nonexistent token");
-  
+
         if (_revealed == false) {
             return _mysteryBoxURI;
         }
-  
+
         return ERC721Upgradeable.tokenURI(tokenId);
     }
-  
+
     function _burn(uint256 tokenId)
             internal virtual
             override(ERC721Upgradeable,
                      ERC721RoyaltyUpgradeable) {
         return super._burn(tokenId);
     }
-  
+
     function _beforeTokenTransfer(address from, address to, uint256 tokenId)
             internal virtual
             override(ERC721Upgradeable,
                      ERC721EnumerableUpgradeable) {
         super._beforeTokenTransfer(from, to, tokenId);
     }
-  
+
     function supportsInterface(bytes4 interfaceId)
             public view virtual
             override(ERC721Upgradeable,

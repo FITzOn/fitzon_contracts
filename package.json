@@ -4,9 +4,9 @@
   "description": "Smart contracts for Fition",
   "author": "Jones Chi",
   "scripts": {
-    "lint": "solhint 'contracts/**/*.sol'",
-    "build": "truffle compile",
-    "test": "truffle test"
+    "lint": "npx solium -d contracts/",
+    "build": "npx truffle compile",
+    "test": "npx truffle test"
   },
   "dependencies": {},
   "devDependencies": {
@@ -14,7 +14,9 @@
     "@openzeppelin/contracts-upgradeable": "^4.6.0",
     "@openzeppelin/test-helpers": "^0.5.15",
     "@openzeppelin/truffle-upgrades": "^1.15.0",
-    "solhint": "^3.3.7",
+    "eslint": "^8.18.0",
+    "eslint-plugin-truffle": "^0.3.1",
+    "ethlint": "^1.2.5",
     "truffle": "^5.5.18"
   }
 }
