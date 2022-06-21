@@ -29,10 +29,6 @@ contract('FITzOnWearable', (accounts) => {
     assert.equal((await this.wearableInstance.tokenByIndex(0)).toNumber(), 1, 'Token id should be 1');
   });
 
-  it('Mint with other account', async () => {
-    await expectRevert(this.wearableInstance.mint(other1, 1, { from: other1 }), 'Ownable: caller is not the owner');
-  });
-
   it('Revealed', async () => {
     await this.wearableInstance.setBaseURI('https://wearables/', { from: owner });
     await this.wearableInstance.setMysteryBoxURI('https://mystrybox', { from: owner });
@@ -129,5 +125,17 @@ contract('FITzOnWearable', (accounts) => {
     let royaltyInfo = await this.wearableInstance.royaltyInfo(32, 50000);
     assert.equal(royaltyInfo[0], other3, `Royalty receiver should be ${other3}`);
     assert.equal(royaltyInfo[1].toNumber(), 10000, 'Royalty amount should be 10000');
+  });
+
+  it('Call owner only with other account', async () => {
+    await expectRevert(this.wearableInstance.mint(other1, 1, { from: other1 }), 'Ownable: caller is not the owner');
+    await expectRevert(this.wearableInstance.setPublicMint(true, { from: other1 }), 'Ownable: caller is not the owner');
+    await expectRevert(this.wearableInstance.setPublicMintPrice(web3.utils.toWei('0.02', 'ether'), { from: other1 }), 'Ownable: caller is not the owner');
+    await expectRevert(this.wearableInstance.setRevealed(true, { from: other1 }), 'Ownable: caller is not the owner');
+    await expectRevert(this.wearableInstance.setMerkleRoot(web3.utils.keccak256('abcdefg'), { from: other1 }), 'Ownable: caller is not the owner');
+    await expectRevert(this.wearableInstance.setDefaultRoyalty(other3, 1000, { from: other1 }), 'Ownable: caller is not the owner');
+    await expectRevert(this.wearableInstance.setTokenRoyalty(32, other3, 1000, { from: other1 }), 'Ownable: caller is not the owner');
+    await expectRevert(this.wearableInstance.setBaseURI('https://baseuri', { from: other1 }), 'Ownable: caller is not the owner');
+    await expectRevert(this.wearableInstance.setMysteryBoxURI('https://mysterybox', { from: other1 }), 'Ownable: caller is not the owner');
   });
 });
