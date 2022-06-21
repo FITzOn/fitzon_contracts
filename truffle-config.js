@@ -18,10 +18,17 @@
  *
  */
 
-// const HDWalletProvider = require('@truffle/hdwallet-provider');
-//
-// const fs = require('fs');
-// const mnemonic = fs.readFileSync(".secret").toString().trim();
+const HDWalletProvider = require('@truffle/hdwallet-provider');
+
+const fs = require('fs');
+let mnemonic;
+if (fs.existsSync('.secret')) {
+  mnemonic = fs.readFileSync('.secret').toString().trim();
+}
+let infuraId;
+if (fs.existsSync('.infura')) {
+  infuraId = fs.readFileSync('.infura').toString().trim();
+}
 
 module.exports = {
   /**
@@ -45,6 +52,14 @@ module.exports = {
      host: "127.0.0.1",     // Localhost (default: none)
      port: 9545,            // Standard Ethereum port (default: none)
      network_id: "*",       // Any network (default: none)
+    },
+    polygon_mumbai: {
+      provider: () => new HDWalletProvider(mnemonic, `https://rpc-mumbai.maticvigil.com`),
+      // provider: () => new HDWalletProvider(mnemonic, `https://polygon-mumbai.infura.io/v3/${infuraId}`),
+      network_id: 80001,
+      confirmations: 2,
+      timeoutBlocks: 200,
+      skipDryRun: true
     },
     // Another network with more advanced options...
     // advanced: {
