@@ -7,10 +7,10 @@ module.exports = function (deployer, network) {
       const ERC20ETHMock = artifacts.require('mocks/ERC20ETHMock');
       const mockToken = await deployer.deploy(ERC20ETHMock);
       console.log(`Deploy with mock ERC20 Eth address: ${mockToken.address}`);
-      const fw = await deployProxy(FITzOnWearable, ['FITzOnWearable', 'FNFT', mockToken.address], { deployer });
+      const fw = await deployProxy(FITzOnWearable, ['FITzOnWearable', 'ZNFT', mockToken.address], { deployer });
     } else {
       console.log(`Deploy with ERC20 Eth address: ${process.env.ERC20ETHAddress}`);
-      const fw = await deployProxy(FITzOnWearable, ['FITzOnWearable', 'FNFT', process.env.ERC20ETHAddress], { deployer });
+      const fw = await deployProxy(FITzOnWearable, ['FITzOnWearable', 'ZNFT', process.env.ERC20ETHAddress], { deployer });
     }
   });
 }
