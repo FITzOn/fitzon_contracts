@@ -20,6 +20,17 @@ contract('FITzOnWearable', (accounts) => {
     assert.equal((await this.ethMockInstance.balanceOf(other2)).toString(), web3.utils.toWei('1', 'ether'), 'Should mint 1 eth');
   });
 
+  it('Check initial state', async () => {
+    assert.equal((await this.wearableInstance.name()).toString(), 'FITzOnWearable');
+    assert.equal((await this.wearableInstance.symbol()).toString(), 'ZNFT');
+
+    assert.equal((await this.wearableInstance.ethToken()).toString(), this.ethMockInstance.address);
+    assert.equal((await this.wearableInstance.revealed()).toString(), 'false');
+    assert.equal((await this.wearableInstance.publicMint()).toString(), 'false');
+    assert.equal((await this.wearableInstance.merkleRoot()).toString(), '0x0000000000000000000000000000000000000000000000000000000000000000');
+    assert.equal((await this.wearableInstance.publicMintPrice()).toString(), web3.utils.toWei('0', 'ether'));
+  });
+
   it('Mint by owner', async () => {
     await this.wearableInstance.mint(other1, 1, { from: owner });
     assert.equal((await this.wearableInstance.balanceOf(other1)).toNumber(), 1, 'Balance should be 1 after mint');
@@ -39,6 +50,7 @@ contract('FITzOnWearable', (accounts) => {
 
     // reveal
     await this.wearableInstance.setRevealed(true, { from: owner });
+    assert.equal((await this.wearableInstance.revealed()).toString(), 'true');
     url = await this.wearableInstance.tokenURI(1);
     assert.equal(url, 'https://wearables/1', 'URI should point to wearable');
   });
@@ -57,6 +69,10 @@ contract('FITzOnWearable', (accounts) => {
     await this.wearableInstance.setPublicMint(true);
     await this.wearableInstance.setPublicMintPrice(web3.utils.toWei('0.02', 'ether'));
     await this.wearableInstance.setMerkleRoot(root_hash);
+
+    assert.equal((await this.wearableInstance.publicMint()).toString(), 'true');
+    assert.equal((await this.wearableInstance.merkleRoot()).toString(), root_hash);
+    assert.equal((await this.wearableInstance.publicMintPrice()).toString(), web3.utils.toWei('0.02', 'ether'));
 
     // approve contract to get token
     await this.ethMockInstance.approve(this.wearableInstance.address, web3.utils.toWei('0.02', 'ether'), {from: other2});
@@ -127,6 +143,21 @@ contract('FITzOnWearable', (accounts) => {
     assert.equal(royaltyInfo[1].toNumber(), 10000, 'Royalty amount should be 10000');
   });
 
+  it('Get/Set ERC20 Eth address', async () => {
+    await this.wearableInstance.setERC20EthAddress(other1);
+    assert.equal((await this.wearableInstance.ethToken()).toString(), other1);
+    await this.wearableInstance.setERC20EthAddress(this.ethMockInstance.address);
+    assert.equal((await this.wearableInstance.ethToken()).toString(), this.ethMockInstance.address);
+  });
+
+  it('Withdraw ERC20 Eth', async () => {
+    await this.ethMockInstance.mint(this.wearableInstance.address, web3.utils.toWei('10', 'ether'));
+    await this.wearableInstance.withdrawEth(other3, web3.utils.toWei('5', 'ether'));
+    assert.equal((await this.ethMockInstance.balanceOf(other3)).toString(), web3.utils.toWei('5', 'ether'), 'Should withdraw 5 eth');
+    await this.wearableInstance.withdrawEth(other3, web3.utils.toWei('5', 'ether'));
+    assert.equal((await this.ethMockInstance.balanceOf(other3)).toString(), web3.utils.toWei('10', 'ether'), 'Should withdraw 10 eth');
+  });
+
   it('Call owner only with other account', async () => {
     await expectRevert(this.wearableInstance.mint(other1, 1, { from: other1 }), 'Ownable: caller is not the owner');
     await expectRevert(this.wearableInstance.setPublicMint(true, { from: other1 }), 'Ownable: caller is not the owner');
@@ -137,5 +168,7 @@ contract('FITzOnWearable', (accounts) => {
     await expectRevert(this.wearableInstance.setTokenRoyalty(32, other3, 1000, { from: other1 }), 'Ownable: caller is not the owner');
     await expectRevert(this.wearableInstance.setBaseURI('https://baseuri', { from: other1 }), 'Ownable: caller is not the owner');
     await expectRevert(this.wearableInstance.setMysteryBoxURI('https://mysterybox', { from: other1 }), 'Ownable: caller is not the owner');
+    await expectRevert(this.wearableInstance.withdrawEth(other2, web3.utils.toWei('0.1', 'ether'), { from: other1 }), 'Ownable: caller is not the owner');
+    await expectRevert(this.wearableInstance.setERC20EthAddress(other1, { from: other1 }), 'Ownable: caller is not the owner');
   });
 });

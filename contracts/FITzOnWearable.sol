@@ -17,13 +17,15 @@ contract FITzOnWearable is Initializable,
         ERC721RoyaltyUpgradeable {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
-    IERC20Upgradeable public _ethToken;
+    IERC20Upgradeable public ethToken;
+    bool public revealed;
+    bool public publicMint;
+    bytes32 public merkleRoot;
+    uint256 public publicMintPrice;
+    string private _name;
+    string private _symbol;
     string private _baseTokenURI;
     string private _mysteryBoxURI;
-    bool private _revealed;
-    bool private _publicMint;
-    bytes32 private _merkleRoot;
-    uint256 private _publicMintPrice;
 
     function initialize(string memory __name, string memory __symbol, IERC20Upgradeable __token) public initializer {
         __Ownable_init();
@@ -32,7 +34,9 @@ contract FITzOnWearable is Initializable,
         __ERC721Burnable_init();
         __ERC721Royalty_init();
 
-        _ethToken = __token;
+        _name = __name;
+        _symbol = __symbol;
+        ethToken = __token;
     }
 
     function mint(address to, uint256 tokenId) external onlyOwner {
@@ -40,27 +44,27 @@ contract FITzOnWearable is Initializable,
     }
 
     function whiteListMint(address to, uint256 tokenId, bytes32[] calldata proof) external {
-        require(_publicMint == true, "Public minting is not started yet");
-        require(_ethToken.allowance(msg.sender, address(this)) >= _publicMintPrice, "Allowance must larger than price");
+        require(publicMint == true, "Public minting is not started yet");
+        require(ethToken.allowance(msg.sender, address(this)) >= publicMintPrice, "Allowance must larger than price");
         require(_verify(_leaf(to, tokenId), proof), "Invalid merkle proof");
-        _ethToken.safeTransferFrom(msg.sender, address(this), _publicMintPrice);
+        ethToken.safeTransferFrom(msg.sender, address(this), publicMintPrice);
         _safeMint(to, tokenId);
     }
 
     function setPublicMint(bool _state) external onlyOwner {
-        _publicMint = _state;
+        publicMint = _state;
     }
 
     function setPublicMintPrice(uint256 price) external onlyOwner {
-        _publicMintPrice = price;
+        publicMintPrice = price;
     }
 
     function setRevealed(bool _state) external onlyOwner {
-        _revealed = _state;
+        revealed = _state;
     }
 
     function setMerkleRoot(bytes32 root) external onlyOwner {
-        _merkleRoot = root;
+        merkleRoot = root;
     }
 
     function _leaf(address account, uint256 tokenId) private pure returns (bytes32) {
@@ -68,7 +72,7 @@ contract FITzOnWearable is Initializable,
     }
 
     function _verify(bytes32 leaf, bytes32[] memory proof) private view returns (bool) {
-        return MerkleProofUpgradeable.verify(proof, _merkleRoot, leaf);
+        return MerkleProofUpgradeable.verify(proof, merkleRoot, leaf);
     }
 
     function setDefaultRoyalty(address receiver, uint96 feeNumerator) external onlyOwner {
@@ -87,6 +91,29 @@ contract FITzOnWearable is Initializable,
         _mysteryBoxURI = mysteryBoxURI;
     }
 
+    function withdrawEth(address receiver, uint256 amount) external onlyOwner {
+        ethToken.safeTransfer(receiver, amount);
+    }
+
+    function setERC20EthAddress(IERC20Upgradeable token) external onlyOwner {
+        ethToken = token;
+    }
+
+    // Size of contract is over limit with this function,
+    // when we need to change the name or symbal, try to remove some functions and then enable this one
+    // function setNameAndSymbol(string memory __name, string memory __symbol) external onlyOwner {
+    //     _name = __name;
+    //     _symbol = __symbol;
+    // }
+
+    function name() public view virtual override returns (string memory) {
+        return _name;
+    }
+
+    function symbol() public view virtual override returns (string memory) {
+        return _symbol;
+    }
+
     function _baseURI() internal view override returns (string memory) {
         return _baseTokenURI;
     }
@@ -94,7 +121,7 @@ contract FITzOnWearable is Initializable,
     function tokenURI(uint256 tokenId) public view virtual override returns (string memory) {
         require(_exists(tokenId), "ERC721Metadata: URI query for nonexistent token");
 
-        if (_revealed == false) {
+        if (revealed == false) {
             return _mysteryBoxURI;
         }
 
