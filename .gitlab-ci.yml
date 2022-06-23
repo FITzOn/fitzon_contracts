@@ -3,31 +3,28 @@ stages:
   - test
   - build
 
-linter:
+default:
   image: node:14.19.3-alpine
   tags:
     - docker
+  before_script:
+    - apk add python3
+    - apk add git
+    - npm install
+
+linter:
   stage: linter
   script:
-    - npm install
     - npm run lint
     - npx eslint test/*
 
 test:
-  image: node:14.19.3-alpine
-  tags:
-    - docker
   stage: test
   script:
-    - npm install
     - npx ganache-cli -p 9545 > /dev/null &
     - npm test
 
 build:
-  image: node:14.19.3-alpine
-  tags:
-    - docker
   stage: build
   script:
-    - npm install
     - npm run build
