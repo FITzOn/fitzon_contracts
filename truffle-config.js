@@ -29,6 +29,10 @@ let infuraId;
 if (fs.existsSync('.infura')) {
   infuraId = fs.readFileSync('.infura').toString().trim();
 }
+let apikeys;
+if (fs.existsSync('.apikeys')) {
+  apikeys = JSON.parse(fs.readFileSync('.apikeys').toString());
+}
 
 module.exports = {
   /**
@@ -114,6 +118,10 @@ module.exports = {
       // }
     }
   },
+
+  plugins: ['truffle-plugin-verify'],
+
+  api_keys: apikeys,
 
   // Truffle DB is currently disabled by default; to enable it, change enabled:
   // false to enabled: true. The default storage location can also be
