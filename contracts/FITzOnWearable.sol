@@ -41,7 +41,7 @@ contract FITzOnWearable is Initializable,
         require(publicMint == true, "Public minting is not started yet");
         require(msg.value >= publicMintPrice, "Must send native token larger than price");
         require(balanceOf(to) < 5, "Can only mint max 5 NFTs");
-        require(_verify(_leaf(to, tokenId), proof), "Invalid merkle proof");
+        require(_verify(_leaf(to), proof), "Invalid merkle proof");
         _safeMint(to, tokenId);
     }
 
@@ -61,8 +61,8 @@ contract FITzOnWearable is Initializable,
         merkleRoot = root;
     }
 
-    function _leaf(address account, uint256 tokenId) private pure returns (bytes32) {
-        return keccak256(abi.encodePacked(account, tokenId));
+    function _leaf(address account) private pure returns (bytes32) {
+        return keccak256(abi.encodePacked(account));
     }
 
     function _verify(bytes32 leaf, bytes32[] memory proof) private view returns (bool) {

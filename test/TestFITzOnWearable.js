@@ -8,6 +8,7 @@ contract('FITzOnWearable', (accounts) => {
   const other1 = accounts[1];
   const other2 = accounts[2];
   const other3 = accounts[3];
+  const other4 = accounts[4];
 
   before(async () => {
     this.wearableInstance = await wearable.deployed();
@@ -49,8 +50,8 @@ contract('FITzOnWearable', (accounts) => {
 
   it('Whitelist public mint', async () => {
     // calc merkle hash
-    const hash1 = ethers.utils.solidityKeccak256(['address', 'uint256'], [other1, '10']);
-    const hash2 = ethers.utils.solidityKeccak256(['address', 'uint256'], [other2, '11']);
+    const hash1 = ethers.utils.solidityKeccak256(['address'], [other1]);
+    const hash2 = ethers.utils.solidityKeccak256(['address'], [other2]);
     let root_hash;
     if (hash1 <= hash2) {
       root_hash = ethers.utils.solidityKeccak256(['uint256', 'uint256'], [hash1, hash2]);
@@ -81,8 +82,8 @@ contract('FITzOnWearable', (accounts) => {
 
   it('Whitelist mint without native token', async () => {
     // calc merkle hash
-    const hash1 = ethers.utils.solidityKeccak256(['address', 'uint256'], [other1, '10']);
-    const hash2 = ethers.utils.solidityKeccak256(['address', 'uint256'], [other3, '11']);
+    const hash1 = ethers.utils.solidityKeccak256(['address'], [other1]);
+    const hash2 = ethers.utils.solidityKeccak256(['address'], [other3]);
     let root_hash;
     if (hash1 <= hash2) {
       root_hash = ethers.utils.solidityKeccak256(['uint256', 'uint256'], [hash1, hash2]);
@@ -99,8 +100,9 @@ contract('FITzOnWearable', (accounts) => {
 
   it('Whitelist mint with bad merkle proof', async () => {
     // calc merkle hash
-    const hash1 = ethers.utils.solidityKeccak256(['address', 'uint256'], [other1, '10']);
-    const hash2 = ethers.utils.solidityKeccak256(['address', 'uint256'], [other2, '11']);
+    const hash1 = ethers.utils.solidityKeccak256(['address'], [other1]);
+    const hash2 = ethers.utils.solidityKeccak256(['address'], [other2]);
+    const hash3 = ethers.utils.solidityKeccak256(['address'], [other3]);
     let root_hash;
     if (hash1 <= hash2) {
       root_hash = ethers.utils.solidityKeccak256(['uint256', 'uint256'], [hash1, hash2]);
@@ -112,7 +114,31 @@ contract('FITzOnWearable', (accounts) => {
     await this.wearableInstance.setPublicMintPrice(web3.utils.toWei('0.02', 'ether'));
     await this.wearableInstance.setMerkleRoot(root_hash);
 
-    await expectRevert(this.wearableInstance.whiteListMint(other2, 111, [hash1], { from: other2, value: web3.utils.toWei('0.02', 'ether') }), 'Invalid merkle proof');
+    await expectRevert(this.wearableInstance.whiteListMint(other2, 111, [hash3], { from: other2, value: web3.utils.toWei('0.02', 'ether') }), 'Invalid merkle proof');
+  });
+
+  it('Whitelist public mint over 5 NFTs', async () => {
+    // calc merkle hash
+    const hash1 = ethers.utils.solidityKeccak256(['address'], [other1]);
+    const hash2 = ethers.utils.solidityKeccak256(['address'], [other3]);
+    let root_hash;
+    if (hash1 <= hash2) {
+      root_hash = ethers.utils.solidityKeccak256(['uint256', 'uint256'], [hash1, hash2]);
+    } else {
+      root_hash = ethers.utils.solidityKeccak256(['uint256', 'uint256'], [hash2, hash1]);
+    }
+
+    await this.wearableInstance.setPublicMint(true);
+    await this.wearableInstance.setPublicMintPrice(web3.utils.toWei('0.02', 'ether'));
+    await this.wearableInstance.setMerkleRoot(root_hash);
+
+    await this.wearableInstance.whiteListMint(other3, 51, [hash1], { from: other2, value: web3.utils.toWei('0.02', 'ether') });
+    await this.wearableInstance.whiteListMint(other3, 52, [hash1], { from: other2, value: web3.utils.toWei('0.02', 'ether') });
+    await this.wearableInstance.whiteListMint(other3, 53, [hash1], { from: other2, value: web3.utils.toWei('0.02', 'ether') });
+    await this.wearableInstance.whiteListMint(other3, 54, [hash1], { from: other2, value: web3.utils.toWei('0.02', 'ether') });
+    await this.wearableInstance.whiteListMint(other3, 55, [hash1], { from: other2, value: web3.utils.toWei('0.02', 'ether') });
+    assert.equal((await this.wearableInstance.balanceOf(other3)).toNumber(), 5, 'Balance should be 5 after 5 mints');
+    await expectRevert(this.wearableInstance.whiteListMint(other3, 56, [hash1], { from: other3, value: web3.utils.toWei('0.02', 'ether') }), 'Can only mint max 5 NFTs');
   });
 
   it('Set/Get default royalty', async () => {
@@ -134,8 +160,8 @@ contract('FITzOnWearable', (accounts) => {
 
   it('Withdraw', async () => {
     // calc merkle hash
-    const hash1 = ethers.utils.solidityKeccak256(['address', 'uint256'], [other1, '20']);
-    const hash2 = ethers.utils.solidityKeccak256(['address', 'uint256'], [other3, '21']);
+    const hash1 = ethers.utils.solidityKeccak256(['address'], [other1]);
+    const hash2 = ethers.utils.solidityKeccak256(['address'], [other4]);
     let root_hash;
     if (hash1 <= hash2) {
       root_hash = ethers.utils.solidityKeccak256(['uint256', 'uint256'], [hash1, hash2]);
@@ -146,8 +172,8 @@ contract('FITzOnWearable', (accounts) => {
     await this.wearableInstance.setPublicMint(true);
     await this.wearableInstance.setPublicMintPrice(web3.utils.toWei('0.01', 'ether'));
     await this.wearableInstance.setMerkleRoot(root_hash);
-    await this.wearableInstance.whiteListMint(other3, 21, [hash1], { from: other3, value: web3.utils.toWei('0.02', 'ether') });
-    assert.equal((await this.wearableInstance.balanceOf(other3)).toNumber(), 1, 'Balance should be 1 after mint twice');
+    await this.wearableInstance.whiteListMint(other4, 21, [hash1], { from: other4, value: web3.utils.toWei('0.02', 'ether') });
+    assert.equal((await this.wearableInstance.balanceOf(other4)).toNumber(), 1, 'Balance should be 1 after mint twice');
 
     let beforeBalance = await web3.eth.getBalance(owner);
     await this.wearableInstance.withdraw(web3.utils.toWei('0.01', 'ether'));
