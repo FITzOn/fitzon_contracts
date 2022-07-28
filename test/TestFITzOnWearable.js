@@ -77,7 +77,7 @@ contract('FITzOnWearable', (accounts) => {
   it('Whitelist but public mint is not started', async () => {
     const hash1 = ethers.utils.solidityKeccak256(['address', 'uint256'], [other1, '10']);
     await this.wearableInstance.setPublicMint(false);
-    await expectRevert(this.wearableInstance.whiteListMint(other2, 11, [hash1], { from: other2, value: web3.utils.toWei('0.02', 'ether') }), 'Public minting is not started yet');
+    await expectRevert(this.wearableInstance.whiteListMint(other2, 11, [hash1], { from: other2, value: web3.utils.toWei('0.02', 'ether') }), 'Public minting is not started');
   });
 
   it('Whitelist mint without native token', async () => {
@@ -95,7 +95,7 @@ contract('FITzOnWearable', (accounts) => {
     await this.wearableInstance.setPublicMintPrice(web3.utils.toWei('0.02', 'ether'));
     await this.wearableInstance.setMerkleRoot(root_hash);
 
-    await expectRevert(this.wearableInstance.whiteListMint(other3, 11, [hash1], { from: other3 }), 'Must send native token larger than price');
+    await expectRevert(this.wearableInstance.whiteListMint(other3, 11, [hash1], { from: other3 }), 'Not enough tokens provided');
   });
 
   it('Whitelist mint with bad merkle proof', async () => {

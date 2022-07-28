@@ -38,8 +38,8 @@ contract FITzOnWearable is Initializable,
     }
 
     function whiteListMint(address to, uint256 tokenId, bytes32[] calldata proof) external payable {
-        require(publicMint == true, "Public minting is not started yet");
-        require(msg.value >= publicMintPrice, "Must send native token larger than price");
+        require(publicMint == true, "Public minting is not started");
+        require(msg.value >= publicMintPrice, "Not enough tokens provided");
         require(balanceOf(to) < 5, "Can only mint max 5 NFTs");
         require(_verify(_leaf(to), proof), "Invalid merkle proof");
         _safeMint(to, tokenId);
