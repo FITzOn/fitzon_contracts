@@ -54,6 +54,10 @@ contract FITzOnFznToken is Initializable,
         return _symbol;
     }
 
+    function getOwner() external view returns (address) {
+        return owner();
+    }
+
     function _mint(address account, uint256 amount)
             internal virtual
             override(ERC20Upgradeable,

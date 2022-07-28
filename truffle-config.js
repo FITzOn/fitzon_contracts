@@ -29,6 +29,10 @@ let infuraId;
 if (fs.existsSync('.infura')) {
   infuraId = fs.readFileSync('.infura').toString().trim();
 }
+let apikeys;
+if (fs.existsSync('.apikeys')) {
+  apikeys = JSON.parse(fs.readFileSync('.apikeys').toString());
+}
 
 module.exports = {
   /**
@@ -58,6 +62,13 @@ module.exports = {
       // provider: () => new HDWalletProvider(mnemonic, `https://polygon-mumbai.infura.io/v3/${infuraId}`),
       network_id: 80001,
       confirmations: 2,
+      timeoutBlocks: 200,
+      skipDryRun: true
+    },
+    bsc_testnet: {
+      provider: () => new HDWalletProvider(mnemonic, `https://data-seed-prebsc-1-s1.binance.org:8545`),
+      network_id: 97,
+      confirmations: 10,
       timeoutBlocks: 200,
       skipDryRun: true
     },
@@ -107,6 +118,10 @@ module.exports = {
       // }
     }
   },
+
+  plugins: ['truffle-plugin-verify'],
+
+  api_keys: apikeys,
 
   // Truffle DB is currently disabled by default; to enable it, change enabled:
   // false to enabled: true. The default storage location can also be

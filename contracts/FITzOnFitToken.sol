@@ -50,6 +50,10 @@ contract FITzOnFitToken is Initializable,
         return _symbol;
     }
 
+    function getOwner() external view returns (address) {
+        return owner();
+    }
+
     function _beforeTokenTransfer(address from, address to, uint256 amount)
             internal virtual
             override(ERC20Upgradeable,

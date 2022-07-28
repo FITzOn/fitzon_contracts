@@ -23,8 +23,8 @@ contract('FITzOnFznToken', (accounts) => {
   });
 
   it('Mint over cap', async () => {
-    await this.tokenInstance.mint(other1, 4900000000, { from: owner });
-    await expectRevert(this.tokenInstance.mint(other1, 1000000000, { from: owner }), 'ERC20Capped: cap exceeded');
+    await this.tokenInstance.mint(other1, web3.utils.toWei('4000000000', 'ether'), { from: owner });
+    await expectRevert(this.tokenInstance.mint(other1, web3.utils.toWei('1000000000', 'ether'), { from: owner }), 'ERC20Capped: cap exceeded');
   });
 
   it('Set/Get name and symbol', async () => {
