@@ -4,7 +4,7 @@
   "description": "Smart contracts for Fition",
   "author": "Jones Chi",
   "scripts": {
-    "lint": "npx solium -d contracts/",
+    "lint": "npx solhint 'contracts/**/*.sol'",
     "build": "npx truffle compile",
     "test": "npx truffle test"
   },
@@ -17,7 +17,7 @@
     "@truffle/hdwallet-provider": "^2.0.9",
     "eslint": "^8.18.0",
     "eslint-plugin-truffle": "^0.3.1",
-    "ethlint": "^1.2.5",
+    "solhint": "^3.3.7",
     "truffle": "^5.5.18",
     "truffle-plugin-verify": "^0.5.26"
   }

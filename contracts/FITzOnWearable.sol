@@ -5,8 +5,6 @@ import "@openzeppelin/contracts-upgradeable/token/ERC721/ERC721Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC721/extensions/ERC721EnumerableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC721/extensions/ERC721BurnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC721/extensions/ERC721RoyaltyUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/cryptography/MerkleProofUpgradeable.sol";
 
@@ -15,9 +13,6 @@ contract FITzOnWearable is Initializable,
         ERC721EnumerableUpgradeable,
         ERC721BurnableUpgradeable,
         ERC721RoyaltyUpgradeable {
-    using SafeERC20Upgradeable for IERC20Upgradeable;
-
-    IERC20Upgradeable public ethToken;
     bool public revealed;
     bool public publicMint;
     bytes32 public merkleRoot;
@@ -27,7 +22,7 @@ contract FITzOnWearable is Initializable,
     string private _baseTokenURI;
     string private _mysteryBoxURI;
 
-    function initialize(string memory __name, string memory __symbol, IERC20Upgradeable __token) public initializer {
+    function initialize(string memory __name, string memory __symbol) public initializer {
         __Ownable_init();
         __ERC721_init(__name, __symbol);
         __ERC721Enumerable_init();
@@ -36,18 +31,17 @@ contract FITzOnWearable is Initializable,
 
         _name = __name;
         _symbol = __symbol;
-        ethToken = __token;
     }
 
     function mint(address to, uint256 tokenId) external onlyOwner {
         _safeMint(to, tokenId);
     }
 
-    function whiteListMint(address to, uint256 tokenId, bytes32[] calldata proof) external {
-        require(publicMint == true, "Public minting is not started yet");
-        require(ethToken.allowance(msg.sender, address(this)) >= publicMintPrice, "Allowance must larger than price");
-        require(_verify(_leaf(to, tokenId), proof), "Invalid merkle proof");
-        ethToken.safeTransferFrom(msg.sender, address(this), publicMintPrice);
+    function whiteListMint(address to, uint256 tokenId, bytes32[] calldata proof) external payable {
+        require(publicMint == true, "Public minting is not started");
+        require(msg.value >= publicMintPrice, "Not enough tokens provided");
+        require(balanceOf(to) < 5, "Can only mint max 5 NFTs");
+        require(_verify(_leaf(to), proof), "Invalid merkle proof");
         _safeMint(to, tokenId);
     }
 
@@ -67,8 +61,8 @@ contract FITzOnWearable is Initializable,
         merkleRoot = root;
     }
 
-    function _leaf(address account, uint256 tokenId) private pure returns (bytes32) {
-        return keccak256(abi.encodePacked(account, tokenId));
+    function _leaf(address account) private pure returns (bytes32) {
+        return keccak256(abi.encodePacked(account));
     }
 
     function _verify(bytes32 leaf, bytes32[] memory proof) private view returns (bool) {
@@ -91,20 +85,15 @@ contract FITzOnWearable is Initializable,
         _mysteryBoxURI = mysteryBoxURI;
     }
 
-    function withdrawEth(address receiver, uint256 amount) external onlyOwner {
-        ethToken.safeTransfer(receiver, amount);
+    function withdraw(uint256 amount) external onlyOwner {
+        (bool success, ) = payable(owner()).call{value: amount}("");
+        require(success, "Failed to send native token");
     }
 
-    function setERC20EthAddress(IERC20Upgradeable token) external onlyOwner {
-        ethToken = token;
+    function setNameAndSymbol(string memory __name, string memory __symbol) external onlyOwner {
+        _name = __name;
+        _symbol = __symbol;
     }
-
-    // Size of contract is over limit with this function,
-    // when we need to change the name or symbal, try to remove some functions and then enable this one
-    // function setNameAndSymbol(string memory __name, string memory __symbol) external onlyOwner {
-    //     _name = __name;
-    //     _symbol = __symbol;
-    // }
 
     function name() public view virtual override returns (string memory) {
         return _name;
