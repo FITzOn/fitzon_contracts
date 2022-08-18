@@ -12,16 +12,14 @@ contract('FITzOnWearable', (accounts) => {
 
   before(async () => {
     this.wearableInstance = await wearable.deployed();
+    this.currentBlock = await web3.eth.getBlock('latest');
   });
 
   it('Check initial state', async () => {
     assert.equal((await this.wearableInstance.name()).toString(), 'FITzOnWearable');
     assert.equal((await this.wearableInstance.symbol()).toString(), 'ZNFT');
 
-    assert.equal((await this.wearableInstance.revealed()).toString(), 'false');
-    assert.equal((await this.wearableInstance.publicMint()).toString(), 'false');
     assert.equal((await this.wearableInstance.merkleRoot()).toString(), '0x0000000000000000000000000000000000000000000000000000000000000000');
-    assert.equal((await this.wearableInstance.publicMintPrice()).toString(), web3.utils.toWei('0', 'ether'));
   });
 
   it('Mint by owner', async () => {
@@ -33,22 +31,45 @@ contract('FITzOnWearable', (accounts) => {
     assert.equal((await this.wearableInstance.tokenByIndex(0)).toNumber(), 1, 'Token id should be 1');
   });
 
-  it('Revealed', async () => {
-    await this.wearableInstance.setBaseURI('https://wearables/', { from: owner });
-    await this.wearableInstance.setMysteryBoxURI('https://mystrybox', { from: owner });
+  it('Presale supply and price', async () => {
+    // before set config
+    assert.equal((await this.wearableInstance.preSaleSupply()).toNumber(), 0, 'Supply should be 0 before presale');
+    assert.equal((await this.wearableInstance.preSalePrice()).toNumber(), 0, 'Price should be 0 before presale');
 
-    await this.wearableInstance.mint(other1, 2, { from: owner });
-    let url = await this.wearableInstance.tokenURI(1);
-    assert.equal(url, 'https://mystrybox', 'URI should be mystry box');
+    // before earlybird
+    await this.wearableInstance.setPreSaleConfig(this.currentBlock.timestamp + 1000, 100, web3.utils.toWei('0.2', 'ether'),
+                                                 this.currentBlock.timestamp + 2000, 200, web3.utils.toWei('0.4', 'ether'),
+                                                 this.currentBlock.timestamp + 3000, 300, web3.utils.toWei('0.6', 'ether'));
+    assert.equal((await this.wearableInstance.preSaleSupply()).toNumber(), 0, 'Supply should be 0 before earlybird');
+    assert.equal((await this.wearableInstance.preSalePrice()).toString(), web3.utils.toWei('0.2', 'ether'), 'Price should be 0.2 ether before earlybird');
 
-    // reveal
-    await this.wearableInstance.setRevealed(true, { from: owner });
-    assert.equal((await this.wearableInstance.revealed()).toString(), 'true');
-    url = await this.wearableInstance.tokenURI(1);
-    assert.equal(url, 'https://wearables/1', 'URI should point to wearable');
+
+    // for earlybird
+    await this.wearableInstance.setPreSaleConfig(this.currentBlock.timestamp - 1000, 100, web3.utils.toWei('0.2', 'ether'),
+                                                 this.currentBlock.timestamp + 1000, 200, web3.utils.toWei('0.4', 'ether'),
+                                                 this.currentBlock.timestamp + 2000, 300, web3.utils.toWei('0.6', 'ether'));
+
+    assert.equal((await this.wearableInstance.preSaleSupply()).toNumber(), 100, 'Supply should be 100 for earlybird');
+    assert.equal((await this.wearableInstance.preSalePrice()).toString(), web3.utils.toWei('0.2', 'ether'), 'Price should be 0.2 ether for earlybird');
+
+    // for private
+    await this.wearableInstance.setPreSaleConfig(this.currentBlock.timestamp - 2000, 100, web3.utils.toWei('0.2', 'ether'),
+                                                 this.currentBlock.timestamp - 1000, 200, web3.utils.toWei('0.4', 'ether'),
+                                                 this.currentBlock.timestamp + 1000, 300, web3.utils.toWei('0.6', 'ether'));
+
+    assert.equal((await this.wearableInstance.preSaleSupply()).toNumber(), 200, 'Supply should be 200 for private');
+    assert.equal((await this.wearableInstance.preSalePrice()).toString(), web3.utils.toWei('0.4', 'ether'), 'Price should be 0.4 ether for private');
+
+    // for community
+    await this.wearableInstance.setPreSaleConfig(this.currentBlock.timestamp - 3000, 100, web3.utils.toWei('0.2', 'ether'),
+                                                 this.currentBlock.timestamp - 2000, 200, web3.utils.toWei('0.4', 'ether'),
+                                                 this.currentBlock.timestamp - 1000, 300, web3.utils.toWei('0.6', 'ether'));
+
+    assert.equal((await this.wearableInstance.preSaleSupply()).toNumber(), 300, 'Supply should be 300 for community');
+    assert.equal((await this.wearableInstance.preSalePrice()).toString(), web3.utils.toWei('0.6', 'ether'), 'Price should be 0.6 ether for community');
   });
 
-  it('Whitelist public mint', async () => {
+  it('Earlybird presale mint', async () => {
     // calc merkle hash
     const hash1 = ethers.utils.solidityKeccak256(['address'], [other1]);
     const hash2 = ethers.utils.solidityKeccak256(['address'], [other2]);
@@ -59,28 +80,104 @@ contract('FITzOnWearable', (accounts) => {
       root_hash = ethers.utils.solidityKeccak256(['uint256', 'uint256'], [hash2, hash1]);
     }
 
-    await this.wearableInstance.setPublicMint(true);
-    await this.wearableInstance.setPublicMintPrice(web3.utils.toWei('0.02', 'ether'));
     await this.wearableInstance.setMerkleRoot(root_hash);
+    await this.wearableInstance.setPreSaleTokenId(11);
+    await this.wearableInstance.setPreSaleConfig(this.currentBlock.timestamp - 1000, 100, web3.utils.toWei('0.02', 'ether'),
+                                                 this.currentBlock.timestamp + 1000, 200, web3.utils.toWei('0.04', 'ether'),
+                                                 this.currentBlock.timestamp + 2000, 300, web3.utils.toWei('0.06', 'ether'));
 
-    assert.equal((await this.wearableInstance.publicMint()).toString(), 'true');
-    assert.equal((await this.wearableInstance.merkleRoot()).toString(), root_hash);
-    assert.equal((await this.wearableInstance.publicMintPrice()).toString(), web3.utils.toWei('0.02', 'ether'));
-
-    // approve contract to get token
-    //await this.ethMockInstance.approve(this.wearableInstance.address, web3.utils.toWei('0.02', 'ether'), {from: other2});
-
-    await this.wearableInstance.whiteListMint(other2, 11, [hash1], { from: other2, value: web3.utils.toWei('0.02', 'ether') });
+    await this.wearableInstance.preSaleMint(other2, 1, [hash1], { from: other2, value: web3.utils.toWei('0.02', 'ether') });
     assert.equal((await this.wearableInstance.balanceOf(other2)).toNumber(), 1, 'Balance should be 1 after mint');
+    assert.equal((await this.wearableInstance.ownerOf(11)).toString(), other2, 'Token owner should be other2');
+    await this.wearableInstance.burn(11, { from: other2 });
+    assert.equal((await this.wearableInstance.balanceOf(other2)).toNumber(), 0, 'Balance should be 0 after burn');
   });
 
-  it('Whitelist but public mint is not started', async () => {
+  it('Private presale mint', async () => {
+    // calc merkle hash
+    const hash1 = ethers.utils.solidityKeccak256(['address'], [other1]);
+    const hash2 = ethers.utils.solidityKeccak256(['address'], [other2]);
+    let root_hash;
+    if (hash1 <= hash2) {
+      root_hash = ethers.utils.solidityKeccak256(['uint256', 'uint256'], [hash1, hash2]);
+    } else {
+      root_hash = ethers.utils.solidityKeccak256(['uint256', 'uint256'], [hash2, hash1]);
+    }
+
+    await this.wearableInstance.setMerkleRoot(root_hash);
+    await this.wearableInstance.setPreSaleTokenId(21);
+    await this.wearableInstance.setPreSaleConfig(this.currentBlock.timestamp - 2000, 100, web3.utils.toWei('0.02', 'ether'),
+                                                 this.currentBlock.timestamp - 1000, 200, web3.utils.toWei('0.04', 'ether'),
+                                                 this.currentBlock.timestamp + 1000, 300, web3.utils.toWei('0.06', 'ether'));
+
+    await expectRevert(this.wearableInstance.preSaleMint(other2, 1, [hash1], { from: other2, value: web3.utils.toWei('0.02', 'ether') }), 'Not enough tokens');
+    await this.wearableInstance.preSaleMint(other2, 1, [hash1], { from: other2, value: web3.utils.toWei('0.04', 'ether') });
+    assert.equal((await this.wearableInstance.balanceOf(other2)).toNumber(), 1, 'Balance should be 1 after mint');
+    assert.equal((await this.wearableInstance.ownerOf(21)).toString(), other2, 'Token owner should be other2');
+    await this.wearableInstance.burn(21, { from: other2 });
+    assert.equal((await this.wearableInstance.balanceOf(other2)).toNumber(), 0, 'Balance should be 0 after burn');
+  });
+
+  it('Community presale mint', async () => {
+    // calc merkle hash
+    const hash1 = ethers.utils.solidityKeccak256(['address'], [other1]);
+    const hash2 = ethers.utils.solidityKeccak256(['address'], [other2]);
+    let root_hash;
+    if (hash1 <= hash2) {
+      root_hash = ethers.utils.solidityKeccak256(['uint256', 'uint256'], [hash1, hash2]);
+    } else {
+      root_hash = ethers.utils.solidityKeccak256(['uint256', 'uint256'], [hash2, hash1]);
+    }
+
+    await this.wearableInstance.setMerkleRoot(root_hash);
+    await this.wearableInstance.setPreSaleTokenId(31);
+    await this.wearableInstance.setPreSaleConfig(this.currentBlock.timestamp - 3000, 100, web3.utils.toWei('0.02', 'ether'),
+                                                 this.currentBlock.timestamp - 2000, 200, web3.utils.toWei('0.04', 'ether'),
+                                                 this.currentBlock.timestamp - 1000, 300, web3.utils.toWei('0.06', 'ether'));
+
+    await expectRevert(this.wearableInstance.preSaleMint(other2, 1, [hash1], { from: other2, value: web3.utils.toWei('0.04', 'ether') }), 'Not enough tokens');
+    await this.wearableInstance.preSaleMint(other2, 1, [hash1], { from: other2, value: web3.utils.toWei('0.06', 'ether') });
+    assert.equal((await this.wearableInstance.balanceOf(other2)).toNumber(), 1, 'Balance should be 1 after mint');
+    assert.equal((await this.wearableInstance.ownerOf(31)).toString(), other2, 'Token owner should be other2');
+    await this.wearableInstance.burn(31, { from: other2 });
+    assert.equal((await this.wearableInstance.balanceOf(other2)).toNumber(), 0, 'Balance should be 0 after burn');
+  });
+
+  it('Presale but public mint is not started', async () => {
     const hash1 = ethers.utils.solidityKeccak256(['address', 'uint256'], [other1, '10']);
-    await this.wearableInstance.setPublicMint(false);
-    await expectRevert(this.wearableInstance.whiteListMint(other2, 11, [hash1], { from: other2, value: web3.utils.toWei('0.02', 'ether') }), 'Public minting is not started');
+    await this.wearableInstance.setPreSaleConfig(this.currentBlock.timestamp + 1000, 100, web3.utils.toWei('0.02', 'ether'),
+                                                 this.currentBlock.timestamp + 2000, 200, web3.utils.toWei('0.04', 'ether'),
+                                                 this.currentBlock.timestamp + 3000, 300, web3.utils.toWei('0.06', 'ether'));
+    await expectRevert(this.wearableInstance.preSaleMint(other2, 1, [hash1], { from: other2, value: web3.utils.toWei('0.02', 'ether') }), 'Public mint is not started');
   });
 
-  it('Whitelist mint without native token', async () => {
+  it('Presale but over supply', async () => {
+    // calc merkle hash
+    const hash1 = ethers.utils.solidityKeccak256(['address'], [other1]);
+    const hash2 = ethers.utils.solidityKeccak256(['address'], [other2]);
+    let root_hash;
+    if (hash1 <= hash2) {
+      root_hash = ethers.utils.solidityKeccak256(['uint256', 'uint256'], [hash1, hash2]);
+    } else {
+      root_hash = ethers.utils.solidityKeccak256(['uint256', 'uint256'], [hash2, hash1]);
+    }
+
+    const currentSupply = (await this.wearableInstance.totalSupply()).toNumber();
+    await this.wearableInstance.setMerkleRoot(root_hash);
+    await this.wearableInstance.setPreSaleTokenId(101);
+    await this.wearableInstance.setPreSaleConfig(this.currentBlock.timestamp - 1000, currentSupply + 1, web3.utils.toWei('0.02', 'ether'),
+                                                 this.currentBlock.timestamp + 1000, 200, web3.utils.toWei('0.04', 'ether'),
+                                                 this.currentBlock.timestamp + 2000, 300, web3.utils.toWei('0.06', 'ether'));
+
+    await this.wearableInstance.preSaleMint(other2, 1, [hash1], { from: other2, value: web3.utils.toWei('0.02', 'ether') });
+    assert.equal((await this.wearableInstance.balanceOf(other2)).toNumber(), 1, 'Balance should be 1 after mint');
+    assert.equal((await this.wearableInstance.ownerOf(101)).toString(), other2, 'Token owner should be other2');
+    assert.equal((await this.wearableInstance.totalSupply()).toNumber(), currentSupply + 1, 'Total supply should be ' + (currentSupply + 1));
+
+    await expectRevert(this.wearableInstance.preSaleMint(other2, 1, [hash1], { from: other2, value: web3.utils.toWei('0.02', 'ether') }), 'Reached max supply');
+  });
+
+  it('Presale mint without native tokens', async () => {
     // calc merkle hash
     const hash1 = ethers.utils.solidityKeccak256(['address'], [other1]);
     const hash2 = ethers.utils.solidityKeccak256(['address'], [other3]);
@@ -91,14 +188,36 @@ contract('FITzOnWearable', (accounts) => {
       root_hash = ethers.utils.solidityKeccak256(['uint256', 'uint256'], [hash2, hash1]);
     }
 
-    await this.wearableInstance.setPublicMint(true);
-    await this.wearableInstance.setPublicMintPrice(web3.utils.toWei('0.02', 'ether'));
     await this.wearableInstance.setMerkleRoot(root_hash);
+    await this.wearableInstance.setPreSaleTokenId(11);
+    await this.wearableInstance.setPreSaleConfig(this.currentBlock.timestamp - 1000, 100, web3.utils.toWei('0.02', 'ether'),
+                                                 this.currentBlock.timestamp + 1000, 200, web3.utils.toWei('0.04', 'ether'),
+                                                 this.currentBlock.timestamp + 2000, 300, web3.utils.toWei('0.06', 'ether'));
 
-    await expectRevert(this.wearableInstance.whiteListMint(other3, 11, [hash1], { from: other3 }), 'Not enough tokens provided');
+    await expectRevert(this.wearableInstance.preSaleMint(other3, 1, [hash1], { from: other3 }), 'Not enough tokens');
   });
 
-  it('Whitelist mint with bad merkle proof', async () => {
+  it('Presale mint multiple without enough native tokens', async () => {
+    // calc merkle hash
+    const hash1 = ethers.utils.solidityKeccak256(['address'], [other1]);
+    const hash2 = ethers.utils.solidityKeccak256(['address'], [other3]);
+    let root_hash;
+    if (hash1 <= hash2) {
+      root_hash = ethers.utils.solidityKeccak256(['uint256', 'uint256'], [hash1, hash2]);
+    } else {
+      root_hash = ethers.utils.solidityKeccak256(['uint256', 'uint256'], [hash2, hash1]);
+    }
+
+    await this.wearableInstance.setMerkleRoot(root_hash);
+    await this.wearableInstance.setPreSaleTokenId(11);
+    await this.wearableInstance.setPreSaleConfig(this.currentBlock.timestamp - 1000, 100, web3.utils.toWei('0.02', 'ether'),
+                                                 this.currentBlock.timestamp + 1000, 200, web3.utils.toWei('0.04', 'ether'),
+                                                 this.currentBlock.timestamp + 2000, 300, web3.utils.toWei('0.06', 'ether'));
+
+    await expectRevert(this.wearableInstance.preSaleMint(other3, 2, [hash1], { from: other3, value: web3.utils.toWei('0.0399', 'ether') }), 'Not enough tokens');
+  });
+
+  it('Presale mint with bad merkle proof', async () => {
     // calc merkle hash
     const hash1 = ethers.utils.solidityKeccak256(['address'], [other1]);
     const hash2 = ethers.utils.solidityKeccak256(['address'], [other2]);
@@ -110,14 +229,16 @@ contract('FITzOnWearable', (accounts) => {
       root_hash = ethers.utils.solidityKeccak256(['uint256', 'uint256'], [hash2, hash1]);
     }
 
-    await this.wearableInstance.setPublicMint(true);
-    await this.wearableInstance.setPublicMintPrice(web3.utils.toWei('0.02', 'ether'));
     await this.wearableInstance.setMerkleRoot(root_hash);
+    await this.wearableInstance.setPreSaleTokenId(111);
+    await this.wearableInstance.setPreSaleConfig(this.currentBlock.timestamp - 1000, 100, web3.utils.toWei('0.02', 'ether'),
+                                                 this.currentBlock.timestamp + 1000, 200, web3.utils.toWei('0.04', 'ether'),
+                                                 this.currentBlock.timestamp + 2000, 300, web3.utils.toWei('0.06', 'ether'));
 
-    await expectRevert(this.wearableInstance.whiteListMint(other2, 111, [hash3], { from: other2, value: web3.utils.toWei('0.02', 'ether') }), 'Invalid merkle proof');
+    await expectRevert(this.wearableInstance.preSaleMint(other2, 1, [hash3], { from: other2, value: web3.utils.toWei('0.02', 'ether') }), 'Invalid merkle proof');
   });
 
-  it('Whitelist public mint over 5 NFTs', async () => {
+  it('Presale public mint over 5 NFTs', async () => {
     // calc merkle hash
     const hash1 = ethers.utils.solidityKeccak256(['address'], [other1]);
     const hash2 = ethers.utils.solidityKeccak256(['address'], [other3]);
@@ -128,32 +249,44 @@ contract('FITzOnWearable', (accounts) => {
       root_hash = ethers.utils.solidityKeccak256(['uint256', 'uint256'], [hash2, hash1]);
     }
 
-    await this.wearableInstance.setPublicMint(true);
-    await this.wearableInstance.setPublicMintPrice(web3.utils.toWei('0.02', 'ether'));
     await this.wearableInstance.setMerkleRoot(root_hash);
+    await this.wearableInstance.setPreSaleTokenId(51);
+    await this.wearableInstance.setPreSaleConfig(this.currentBlock.timestamp - 1000, 100, web3.utils.toWei('0.02', 'ether'),
+                                                 this.currentBlock.timestamp + 1000, 200, web3.utils.toWei('0.04', 'ether'),
+                                                 this.currentBlock.timestamp + 2000, 300, web3.utils.toWei('0.06', 'ether'));
 
-    await this.wearableInstance.whiteListMint(other3, 51, [hash1], { from: other2, value: web3.utils.toWei('0.02', 'ether') });
-    await this.wearableInstance.whiteListMint(other3, 52, [hash1], { from: other2, value: web3.utils.toWei('0.02', 'ether') });
-    await this.wearableInstance.whiteListMint(other3, 53, [hash1], { from: other2, value: web3.utils.toWei('0.02', 'ether') });
-    await this.wearableInstance.whiteListMint(other3, 54, [hash1], { from: other2, value: web3.utils.toWei('0.02', 'ether') });
-    await this.wearableInstance.whiteListMint(other3, 55, [hash1], { from: other2, value: web3.utils.toWei('0.02', 'ether') });
+    await this.wearableInstance.preSaleMint(other3, 5, [hash1], { from: other3, value: web3.utils.toWei('0.1', 'ether') });
     assert.equal((await this.wearableInstance.balanceOf(other3)).toNumber(), 5, 'Balance should be 5 after 5 mints');
-    await expectRevert(this.wearableInstance.whiteListMint(other3, 56, [hash1], { from: other3, value: web3.utils.toWei('0.02', 'ether') }), 'Can only mint max 5 NFTs');
+    assert.equal((await this.wearableInstance.ownerOf(51)).toString(), other3, 'Token owner should be other3');
+    assert.equal((await this.wearableInstance.ownerOf(52)).toString(), other3, 'Token owner should be other3');
+    assert.equal((await this.wearableInstance.ownerOf(53)).toString(), other3, 'Token owner should be other3');
+    assert.equal((await this.wearableInstance.ownerOf(54)).toString(), other3, 'Token owner should be other3');
+    assert.equal((await this.wearableInstance.ownerOf(55)).toString(), other3, 'Token owner should be other3');
+
+    await expectRevert(this.wearableInstance.preSaleMint(other3, 1, [hash1], { from: other3, value: web3.utils.toWei('0.02', 'ether') }), 'Can only mint max 5 NFTs');
+  });
+
+  it('Presale mint from other contract', async () => {
+    const hash1 = ethers.utils.solidityKeccak256(['address'], [other1]);
+
+    const tester = artifacts.require('PreSaleMintTester');
+    const inst = await tester.new();
+    await expectRevert(inst.preSaleMint(other1, 1, [hash1]), 'The caller is another contract');
   });
 
   it('Set/Get default royalty', async () => {
-    await this.wearableInstance.mint(other1, 31, { from: owner });
+    await this.wearableInstance.mint(other1, 41, { from: owner });
     await this.wearableInstance.setDefaultRoyalty(other3, 1000);
-    let royaltyInfo = await this.wearableInstance.royaltyInfo(31, 50000);
+    let royaltyInfo = await this.wearableInstance.royaltyInfo(41, 50000);
     assert.equal(royaltyInfo[0], other3, `Royalty receiver should be ${other3}`);
     assert.equal(royaltyInfo[1].toNumber(), 5000, 'Royalty amount should be 5000');
   });
 
   it('Set/Get special royalty', async () => {
-    await this.wearableInstance.mint(other1, 32, { from: owner });
+    await this.wearableInstance.mint(other1, 42, { from: owner });
     await this.wearableInstance.setDefaultRoyalty(other3, 1000);
-    await this.wearableInstance.setTokenRoyalty(32, other3, 2000);
-    let royaltyInfo = await this.wearableInstance.royaltyInfo(32, 50000);
+    await this.wearableInstance.setTokenRoyalty(42, other3, 2000);
+    let royaltyInfo = await this.wearableInstance.royaltyInfo(42, 50000);
     assert.equal(royaltyInfo[0], other3, `Royalty receiver should be ${other3}`);
     assert.equal(royaltyInfo[1].toNumber(), 10000, 'Royalty amount should be 10000');
   });
@@ -169,11 +302,13 @@ contract('FITzOnWearable', (accounts) => {
       root_hash = ethers.utils.solidityKeccak256(['uint256', 'uint256'], [hash2, hash1]);
     }
 
-    await this.wearableInstance.setPublicMint(true);
-    await this.wearableInstance.setPublicMintPrice(web3.utils.toWei('0.01', 'ether'));
     await this.wearableInstance.setMerkleRoot(root_hash);
-    await this.wearableInstance.whiteListMint(other4, 21, [hash1], { from: other4, value: web3.utils.toWei('0.02', 'ether') });
-    assert.equal((await this.wearableInstance.balanceOf(other4)).toNumber(), 1, 'Balance should be 1 after mint twice');
+    await this.wearableInstance.setPreSaleTokenId(102);
+    await this.wearableInstance.setPreSaleConfig(this.currentBlock.timestamp - 1000, 100, web3.utils.toWei('0.01', 'ether'),
+                                                 this.currentBlock.timestamp + 1000, 200, web3.utils.toWei('0.02', 'ether'),
+                                                 this.currentBlock.timestamp + 2000, 300, web3.utils.toWei('0.03', 'ether'));
+    await this.wearableInstance.preSaleMint(other4, 1, [hash1], { from: other4, value: web3.utils.toWei('0.02', 'ether') });
+    assert.equal((await this.wearableInstance.balanceOf(other4)).toNumber(), 1, 'Balance should be 1 after mint');
 
     let beforeBalance = await web3.eth.getBalance(owner);
     await this.wearableInstance.withdraw(web3.utils.toWei('0.01', 'ether'));
@@ -187,16 +322,22 @@ contract('FITzOnWearable', (accounts) => {
     assert.equal(withdrawAmount2 > withdrawAmount, true);
   });
 
+  it('Set name and symbol', async () => {
+    await this.wearableInstance.setNameAndSymbol('FITzOnW', 'WNFT');
+
+    assert.equal((await this.wearableInstance.name()).toString(), 'FITzOnW');
+    assert.equal((await this.wearableInstance.symbol()).toString(), 'WNFT');
+  });
+
   it('Call owner only with other account', async () => {
     await expectRevert(this.wearableInstance.mint(other1, 1, { from: other1 }), 'Ownable: caller is not the owner');
-    await expectRevert(this.wearableInstance.setPublicMint(true, { from: other1 }), 'Ownable: caller is not the owner');
-    await expectRevert(this.wearableInstance.setPublicMintPrice(web3.utils.toWei('0.02', 'ether'), { from: other1 }), 'Ownable: caller is not the owner');
-    await expectRevert(this.wearableInstance.setRevealed(true, { from: other1 }), 'Ownable: caller is not the owner');
+    await expectRevert(this.wearableInstance.setPreSaleTokenId(1, { from: other1 }), 'Ownable: caller is not the owner');
+    await expectRevert(this.wearableInstance.setPreSaleConfig(1, 1, 1, 2, 2, 2, 3, 3, 3, { from: other1 }), 'Ownable: caller is not the owner');
     await expectRevert(this.wearableInstance.setMerkleRoot(web3.utils.keccak256('abcdefg'), { from: other1 }), 'Ownable: caller is not the owner');
     await expectRevert(this.wearableInstance.setDefaultRoyalty(other3, 1000, { from: other1 }), 'Ownable: caller is not the owner');
     await expectRevert(this.wearableInstance.setTokenRoyalty(32, other3, 1000, { from: other1 }), 'Ownable: caller is not the owner');
     await expectRevert(this.wearableInstance.setBaseURI('https://baseuri', { from: other1 }), 'Ownable: caller is not the owner');
-    await expectRevert(this.wearableInstance.setMysteryBoxURI('https://mysterybox', { from: other1 }), 'Ownable: caller is not the owner');
     await expectRevert(this.wearableInstance.withdraw(web3.utils.toWei('0.1', 'ether'), { from: other1 }), 'Ownable: caller is not the owner');
+    await expectRevert(this.wearableInstance.setNameAndSymbol('FITzOnW', 'WNFT', { from: other1 }), 'Ownable: caller is not the owner');
   });
 });
