@@ -13,14 +13,25 @@ contract FITzOnWearable is Initializable,
         ERC721EnumerableUpgradeable,
         ERC721BurnableUpgradeable,
         ERC721RoyaltyUpgradeable {
-    bool public revealed;
-    bool public publicMint;
     bytes32 public merkleRoot;
-    uint256 public publicMintPrice;
+    uint256 private _preSaleTokenId;
     string private _name;
     string private _symbol;
     string private _baseTokenURI;
-    string private _mysteryBoxURI;
+
+    struct PreSaleConfig {
+        uint32 earlybirdStartTime;
+        uint16 earlybirdQty;
+        uint64 earlybirdPrice;
+        uint32 privateStartTime;
+        uint16 privateQty;
+        uint64 privatePrice;
+        uint32 communityStartTime;
+        uint16 communityQty;
+        uint64 communityPrice;
+    }
+
+    PreSaleConfig public preSaleConfig;
 
     function initialize(string memory __name, string memory __symbol) public initializer {
         __Ownable_init();
@@ -37,24 +48,76 @@ contract FITzOnWearable is Initializable,
         _safeMint(to, tokenId);
     }
 
-    function whiteListMint(address to, uint256 tokenId, bytes32[] calldata proof) external payable {
-        require(publicMint == true, "Public minting is not started");
-        require(msg.value >= publicMintPrice, "Not enough tokens provided");
-        require(balanceOf(to) < 5, "Can only mint max 5 NFTs");
+    function preSaleMint(address to, uint256 quantity, bytes32[] calldata proof) external payable {
+        require(tx.origin == msg.sender, "The caller is another contract");
+        require(isPublicSaleStarted(), "Public mint is not started");
+        require(totalSupply() + quantity <= preSaleSupply(), "Reached max supply");
+        require(preSalePrice() * quantity <= msg.value, "Not enough tokens");
+        require(balanceOf(to) + quantity <= 5, "Can only mint max 5 NFTs");
         require(_verify(_leaf(to), proof), "Invalid merkle proof");
-        _safeMint(to, tokenId);
+
+        for (uint256 i = 0; i < quantity; i++) {
+            _safeMint(to, _preSaleTokenId);
+            _preSaleTokenId ++;
+        }
     }
 
-    function setPublicMint(bool _state) external onlyOwner {
-        publicMint = _state;
+    function isPublicSaleStarted() public view returns (bool) {
+        uint256 startTime = uint256(preSaleConfig.earlybirdStartTime);
+        return startTime != 0 && block.timestamp >= startTime;
     }
 
-    function setPublicMintPrice(uint256 price) external onlyOwner {
-        publicMintPrice = price;
+    function preSaleSupply() public view returns (uint16) {
+        if (preSaleConfig.earlybirdStartTime == 0 ||
+            block.timestamp < uint256(preSaleConfig.earlybirdStartTime)) {
+            return 0;
+        } else if (block.timestamp < uint256(preSaleConfig.privateStartTime)) {
+            return preSaleConfig.earlybirdQty;
+        } else if (block.timestamp < uint256(preSaleConfig.communityStartTime)) {
+            return preSaleConfig.privateQty;
+        } else {
+            return preSaleConfig.communityQty;
+        }
     }
 
-    function setRevealed(bool _state) external onlyOwner {
-        revealed = _state;
+    function preSalePrice() public view returns (uint64) {
+        if (block.timestamp >= uint256(preSaleConfig.communityStartTime)) {
+            return preSaleConfig.communityPrice;
+        } else if (block.timestamp >= uint256(preSaleConfig.privateStartTime)) {
+            return preSaleConfig.privatePrice;
+        } else {
+            return preSaleConfig.earlybirdPrice;
+        }
+    }
+
+    function setPreSaleConfig(
+      uint32 earlybirdStartTime,
+      uint16 earlybirdQty,
+      uint64 earlybirdPrice,
+      uint32 privateStartTime,
+      uint16 privateQty,
+      uint64 privatePrice,
+      uint32 communityStartTime,
+      uint16 communityQty,
+      uint64 communityPrice
+    ) external onlyOwner {
+        require(earlybirdStartTime <= privateStartTime && privateStartTime <= communityStartTime, "Bad start time");
+
+        preSaleConfig = PreSaleConfig(
+            earlybirdStartTime,
+            earlybirdQty,
+            earlybirdPrice,
+            privateStartTime,
+            privateQty,
+            privatePrice,
+            communityStartTime,
+            communityQty,
+            communityPrice
+        );
+    }
+
+    function setPreSaleTokenId(uint256 startTokenId) external onlyOwner {
+        _preSaleTokenId = startTokenId;
     }
 
     function setMerkleRoot(bytes32 root) external onlyOwner {
@@ -81,10 +144,6 @@ contract FITzOnWearable is Initializable,
         _baseTokenURI = baseTokenURI;
     }
 
-    function setMysteryBoxURI(string memory mysteryBoxURI) external onlyOwner {
-        _mysteryBoxURI = mysteryBoxURI;
-    }
-
     function withdraw(uint256 amount) external onlyOwner {
         (bool success, ) = payable(owner()).call{value: amount}("");
         require(success, "Failed to send native token");
@@ -109,10 +168,6 @@ contract FITzOnWearable is Initializable,
 
     function tokenURI(uint256 tokenId) public view virtual override returns (string memory) {
         require(_exists(tokenId), "ERC721Metadata: URI query for nonexistent token");
-
-        if (revealed == false) {
-            return _mysteryBoxURI;
-        }
 
         return ERC721Upgradeable.tokenURI(tokenId);
     }

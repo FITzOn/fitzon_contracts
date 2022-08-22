@@ -19,6 +19,7 @@
     "eslint-plugin-truffle": "^0.3.1",
     "solhint": "^3.3.7",
     "truffle": "^5.5.18",
+    "truffle-contract-size": "^2.0.1",
     "truffle-plugin-verify": "^0.5.26"
   }
 }
