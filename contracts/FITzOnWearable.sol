@@ -19,18 +19,25 @@ contract FITzOnWearable is Initializable,
     string private _symbol;
     string private _baseTokenURI;
 
+    struct DevMintConfig {
+        uint32 devStartTime;
+        uint16 devQuantity;
+        uint64 devPrice;
+    }
+
     struct PreSaleConfig {
         uint32 earlybirdStartTime;
-        uint16 earlybirdQty;
+        uint16 earlybirdQuantity;
         uint64 earlybirdPrice;
         uint32 privateStartTime;
-        uint16 privateQty;
+        uint16 privateQuantity;
         uint64 privatePrice;
         uint32 communityStartTime;
-        uint16 communityQty;
+        uint16 communityQuantity;
         uint64 communityPrice;
     }
 
+    DevMintConfig public devMintConfig;
     PreSaleConfig public preSaleConfig;
 
     function initialize(string memory __name, string memory __symbol) public initializer {
@@ -46,6 +53,21 @@ contract FITzOnWearable is Initializable,
 
     function mint(address to, uint256 tokenId) external onlyOwner {
         _safeMint(to, tokenId);
+    }
+
+    function devMint(address to, uint256 quantity, bytes32[] calldata proof) external payable {
+        require(tx.origin == msg.sender, "The caller is another contract");
+        require(devMintConfig.devStartTime != 0, "Dev mint is not started");
+        require(block.timestamp >= devMintConfig.devStartTime, "Dev mint is not started");
+        require(totalSupply() + quantity <= devMintConfig.devQuantity, "Reached max supply");
+        require(devMintConfig.devPrice * quantity <= msg.value, "Not enough tokens");
+        require(balanceOf(to) + quantity <= 2, "Can only mint max 2 NFTs");
+        require(_verify(_leaf(to), proof), "Invalid merkle proof");
+
+        for (uint256 i = 0; i < quantity; i++) {
+            _safeMint(to, _preSaleTokenId);
+            _preSaleTokenId ++;
+        }
     }
 
     function preSaleMint(address to, uint256 quantity, bytes32[] calldata proof) external payable {
@@ -72,11 +94,11 @@ contract FITzOnWearable is Initializable,
             block.timestamp < uint256(preSaleConfig.earlybirdStartTime)) {
             return 0;
         } else if (block.timestamp < uint256(preSaleConfig.privateStartTime)) {
-            return preSaleConfig.earlybirdQty;
+            return preSaleConfig.earlybirdQuantity;
         } else if (block.timestamp < uint256(preSaleConfig.communityStartTime)) {
-            return preSaleConfig.privateQty;
+            return preSaleConfig.privateQuantity;
         } else {
-            return preSaleConfig.communityQty;
+            return preSaleConfig.communityQuantity;
         }
     }
 
@@ -90,28 +112,40 @@ contract FITzOnWearable is Initializable,
         }
     }
 
+    function setDevMintConfig(
+      uint32 devStartTime,
+      uint16 devQuantity,
+      uint64 devPrice
+    ) external onlyOwner {
+        devMintConfig = DevMintConfig(
+            devStartTime,
+            devQuantity,
+            devPrice
+        );
+    }
+
     function setPreSaleConfig(
       uint32 earlybirdStartTime,
-      uint16 earlybirdQty,
+      uint16 earlybirdQuantity,
       uint64 earlybirdPrice,
       uint32 privateStartTime,
-      uint16 privateQty,
+      uint16 privateQuantity,
       uint64 privatePrice,
       uint32 communityStartTime,
-      uint16 communityQty,
+      uint16 communityQuantity,
       uint64 communityPrice
     ) external onlyOwner {
         require(earlybirdStartTime <= privateStartTime && privateStartTime <= communityStartTime, "Bad start time");
 
         preSaleConfig = PreSaleConfig(
             earlybirdStartTime,
-            earlybirdQty,
+            earlybirdQuantity,
             earlybirdPrice,
             privateStartTime,
-            privateQty,
+            privateQuantity,
             privatePrice,
             communityStartTime,
-            communityQty,
+            communityQuantity,
             communityPrice
         );
     }
