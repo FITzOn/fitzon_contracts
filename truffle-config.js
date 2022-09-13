@@ -57,6 +57,23 @@ module.exports = {
      port: 9545,            // Standard Ethereum port (default: none)
      network_id: "*",       // Any network (default: none)
     },
+    goerli: {
+      provider: () => new HDWalletProvider(mnemonic, `https://goerli.infura.io/v3/`),
+      // provider: () => new HDWalletProvider(mnemonic, `https://goerli.infura.io/v3/${infuraId}`),
+      network_id: 5,
+      confirmations: 2,
+      timeoutBlocks: 200,
+      skipDryRun: true
+    },
+    rinkeby: {
+      provider: () => new HDWalletProvider(mnemonic, `https://rinkeby.infura.io/v3/`),
+      // provider: () => new HDWalletProvider(mnemonic, `https://rinkeby.infura.io/v3/${infuraId}`),
+      network_id: 4,
+      gas: 5500000,
+      confirmations: 2,
+      timeoutBlocks: 200,
+      skipDryRun: true
+    },
     polygon_mumbai: {
       provider: () => new HDWalletProvider(mnemonic, `https://rpc-mumbai.maticvigil.com`),
       // provider: () => new HDWalletProvider(mnemonic, `https://polygon-mumbai.infura.io/v3/${infuraId}`),
