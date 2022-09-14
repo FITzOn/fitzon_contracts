@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.11;
+pragma solidity 0.8.13;
 
 import "@openzeppelin/contracts-upgradeable/token/ERC721/ERC721Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC721/extensions/ERC721EnumerableUpgradeable.sol";
@@ -13,32 +13,34 @@ contract FITzOnWearable is Initializable,
         ERC721EnumerableUpgradeable,
         ERC721BurnableUpgradeable,
         ERC721RoyaltyUpgradeable {
-    bytes32 public merkleRoot;
+    bytes32 public devMintMerkleRoot;
+    bytes32 public fastPassMerkleRoot;
+    bytes32 public preSaleMerkleRoot;
     uint256 private _preSaleTokenId;
     string private _name;
     string private _symbol;
     string private _baseTokenURI;
 
     struct DevMintConfig {
-        uint32 devStartTime;
-        uint16 devQuantity;
-        uint64 devPrice;
+        uint32 startTime;
+        uint16 quantity;
+        uint64 price;
     }
 
     struct PreSaleConfig {
-        uint32 earlybirdStartTime;
-        uint16 earlybirdQuantity;
-        uint64 earlybirdPrice;
-        uint32 privateStartTime;
-        uint16 privateQuantity;
-        uint64 privatePrice;
-        uint32 communityStartTime;
-        uint16 communityQuantity;
-        uint64 communityPrice;
+        uint32 fpStartTime;
+        uint16 fpQuantity;
+        uint32 s1StartTime;
+        uint16 s1Quantity;
+        uint32 s2StartTime;
+        uint16 s2Quantity;
+        uint64 price;
     }
 
     DevMintConfig public devMintConfig;
-    PreSaleConfig public preSaleConfig;
+    PreSaleConfig public preSaleEBConfig;
+    PreSaleConfig public preSalePVConfig;
+    PreSaleConfig public preSaleCMConfig;
 
     function initialize(string memory __name, string memory __symbol) public initializer {
         __Ownable_init();
@@ -57,12 +59,12 @@ contract FITzOnWearable is Initializable,
 
     function devMint(address to, uint256 quantity, bytes32[] calldata proof) external payable {
         require(tx.origin == msg.sender, "The caller is another contract");
-        require(devMintConfig.devStartTime != 0, "Dev mint is not started");
-        require(block.timestamp >= devMintConfig.devStartTime, "Dev mint is not started");
-        require(totalSupply() + quantity <= devMintConfig.devQuantity, "Reached max supply");
-        require(devMintConfig.devPrice * quantity <= msg.value, "Not enough tokens");
+        require(devMintConfig.startTime != 0, "Dev mint is not started");
+        require(block.timestamp >= devMintConfig.startTime, "Dev mint is not started");
+        require(totalSupply() + quantity <= devMintConfig.quantity, "Reached max supply");
+        require(_verify(proof, devMintMerkleRoot, _leaf(to)), "Invalid merkle proof");
+        require(devMintConfig.price * quantity <= msg.value, "Not enough tokens");
         require(balanceOf(to) + quantity <= 2, "Can only mint max 2 NFTs");
-        require(_verify(_leaf(to), proof), "Invalid merkle proof");
 
         for (uint256 i = 0; i < quantity; i++) {
             _safeMint(to, _preSaleTokenId);
@@ -74,9 +76,9 @@ contract FITzOnWearable is Initializable,
         require(tx.origin == msg.sender, "The caller is another contract");
         require(isPublicSaleStarted(), "Public mint is not started");
         require(totalSupply() + quantity <= preSaleSupply(), "Reached max supply");
+        require(_verify(proof, preSaleRoot(), _leaf(to)), "Invalid merkle proof");
         require(preSalePrice() * quantity <= msg.value, "Not enough tokens");
         require(balanceOf(to) + quantity <= 5, "Can only mint max 5 NFTs");
-        require(_verify(_leaf(to), proof), "Invalid merkle proof");
 
         for (uint256 i = 0; i < quantity; i++) {
             _safeMint(to, _preSaleTokenId);
@@ -85,30 +87,61 @@ contract FITzOnWearable is Initializable,
     }
 
     function isPublicSaleStarted() public view returns (bool) {
-        uint256 startTime = uint256(preSaleConfig.earlybirdStartTime);
+        uint256 startTime = uint256(preSaleEBConfig.fpStartTime);
         return startTime != 0 && block.timestamp >= startTime;
     }
 
-    function preSaleSupply() public view returns (uint16) {
-        if (preSaleConfig.earlybirdStartTime == 0 ||
-            block.timestamp < uint256(preSaleConfig.earlybirdStartTime)) {
+    function preSaleRoot() public view returns (bytes32) {
+        if (preSaleEBConfig.fpStartTime == 0 ||
+            block.timestamp < uint256(preSaleEBConfig.fpStartTime)) {
             return 0;
-        } else if (block.timestamp < uint256(preSaleConfig.privateStartTime)) {
-            return preSaleConfig.earlybirdQuantity;
-        } else if (block.timestamp < uint256(preSaleConfig.communityStartTime)) {
-            return preSaleConfig.privateQuantity;
+        } else if (block.timestamp < uint256(preSaleEBConfig.s1StartTime)) {
+            return fastPassMerkleRoot;
+        } else if (block.timestamp < uint256(preSalePVConfig.fpStartTime)) {
+            return preSaleMerkleRoot;
+        } else if (block.timestamp < uint256(preSalePVConfig.s1StartTime)) {
+            return fastPassMerkleRoot;
+        } else if (block.timestamp < uint256(preSaleCMConfig.fpStartTime)) {
+            return preSaleMerkleRoot;
+        } else if (block.timestamp < uint256(preSaleCMConfig.s1StartTime)) {
+            return fastPassMerkleRoot;
         } else {
-            return preSaleConfig.communityQuantity;
+            return preSaleMerkleRoot;
+        }
+    }
+
+    function preSaleSupply() public view returns (uint16) {
+        if (preSaleEBConfig.fpStartTime == 0 ||
+            block.timestamp < uint256(preSaleEBConfig.fpStartTime)) {
+            return 0;
+        } else if (block.timestamp < uint256(preSaleEBConfig.s1StartTime)) {
+            return preSaleEBConfig.fpQuantity;
+        } else if (block.timestamp < uint256(preSaleEBConfig.s2StartTime)) {
+            return preSaleEBConfig.s1Quantity;
+        } else if (block.timestamp < uint256(preSalePVConfig.fpStartTime)) {
+            return preSaleEBConfig.s2Quantity;
+        } else if (block.timestamp < uint256(preSalePVConfig.s1StartTime)) {
+            return preSalePVConfig.fpQuantity;
+        } else if (block.timestamp < uint256(preSalePVConfig.s2StartTime)) {
+            return preSalePVConfig.s1Quantity;
+        } else if (block.timestamp < uint256(preSaleCMConfig.fpStartTime)) {
+            return preSalePVConfig.s2Quantity;
+        } else if (block.timestamp < uint256(preSaleCMConfig.s1StartTime)) {
+            return preSaleCMConfig.fpQuantity;
+        } else if (block.timestamp < uint256(preSaleCMConfig.s2StartTime)) {
+            return preSaleCMConfig.s1Quantity;
+        } else {
+            return preSaleCMConfig.s2Quantity;
         }
     }
 
     function preSalePrice() public view returns (uint64) {
-        if (block.timestamp >= uint256(preSaleConfig.communityStartTime)) {
-            return preSaleConfig.communityPrice;
-        } else if (block.timestamp >= uint256(preSaleConfig.privateStartTime)) {
-            return preSaleConfig.privatePrice;
+        if (block.timestamp >= uint256(preSaleCMConfig.fpStartTime)) {
+            return preSaleCMConfig.price;
+        } else if (block.timestamp >= uint256(preSalePVConfig.fpStartTime)) {
+            return preSalePVConfig.price;
         } else {
-            return preSaleConfig.earlybirdPrice;
+            return preSaleEBConfig.price;
         }
     }
 
@@ -124,29 +157,71 @@ contract FITzOnWearable is Initializable,
         );
     }
 
-    function setPreSaleConfig(
-      uint32 earlybirdStartTime,
-      uint16 earlybirdQuantity,
-      uint64 earlybirdPrice,
-      uint32 privateStartTime,
-      uint16 privateQuantity,
-      uint64 privatePrice,
-      uint32 communityStartTime,
-      uint16 communityQuantity,
-      uint64 communityPrice
+    function setPreSaleEBConfig(
+      uint32 fpStartTime,
+      uint16 fpQuantity,
+      uint32 s1StartTime,
+      uint16 s1Quantity,
+      uint32 s2StartTime,
+      uint16 s2Quantity,
+      uint64 price
     ) external onlyOwner {
-        require(earlybirdStartTime <= privateStartTime && privateStartTime <= communityStartTime, "Bad start time");
+        require(fpStartTime < s1StartTime && s1StartTime < s2StartTime, "Bad start time");
 
-        preSaleConfig = PreSaleConfig(
-            earlybirdStartTime,
-            earlybirdQuantity,
-            earlybirdPrice,
-            privateStartTime,
-            privateQuantity,
-            privatePrice,
-            communityStartTime,
-            communityQuantity,
-            communityPrice
+        preSaleEBConfig = PreSaleConfig(
+            fpStartTime,
+            fpQuantity,
+            s1StartTime,
+            s1Quantity,
+            s2StartTime,
+            s2Quantity,
+            price
+        );
+    }
+
+    function setPreSalePVConfig(
+      uint32 fpStartTime,
+      uint16 fpQuantity,
+      uint32 s1StartTime,
+      uint16 s1Quantity,
+      uint32 s2StartTime,
+      uint16 s2Quantity,
+      uint64 price
+    ) external onlyOwner {
+        require(fpStartTime < s1StartTime && s1StartTime < s2StartTime, "Bad start time");
+        require(fpStartTime > preSaleEBConfig.s2StartTime, "Start time should later than early bird");
+
+        preSalePVConfig = PreSaleConfig(
+            fpStartTime,
+            fpQuantity,
+            s1StartTime,
+            s1Quantity,
+            s2StartTime,
+            s2Quantity,
+            price
+        );
+    }
+
+    function setPreSaleCMConfig(
+      uint32 fpStartTime,
+      uint16 fpQuantity,
+      uint32 s1StartTime,
+      uint16 s1Quantity,
+      uint32 s2StartTime,
+      uint16 s2Quantity,
+      uint64 price
+    ) external onlyOwner {
+        require(fpStartTime < s1StartTime && s1StartTime < s2StartTime, "Bad start time");
+        require(fpStartTime > preSalePVConfig.s2StartTime, "Start time should later than private");
+
+        preSaleCMConfig = PreSaleConfig(
+            fpStartTime,
+            fpQuantity,
+            s1StartTime,
+            s1Quantity,
+            s2StartTime,
+            s2Quantity,
+            price
         );
     }
 
@@ -154,15 +229,23 @@ contract FITzOnWearable is Initializable,
         _preSaleTokenId = startTokenId;
     }
 
-    function setMerkleRoot(bytes32 root) external onlyOwner {
-        merkleRoot = root;
+    function setDevMintMerkleRoot(bytes32 root) external onlyOwner {
+        devMintMerkleRoot = root;
+    }
+
+    function setFastPassMerkleRoot(bytes32 root) external onlyOwner {
+        fastPassMerkleRoot = root;
+    }
+
+    function setPreSaleMerkleRoot(bytes32 root) external onlyOwner {
+        preSaleMerkleRoot = root;
     }
 
     function _leaf(address account) private pure returns (bytes32) {
         return keccak256(abi.encodePacked(account));
     }
 
-    function _verify(bytes32 leaf, bytes32[] memory proof) private view returns (bool) {
+    function _verify(bytes32[] memory proof, bytes32 merkleRoot, bytes32 leaf) private pure returns (bool) {
         return MerkleProofUpgradeable.verify(proof, merkleRoot, leaf);
     }
 
@@ -210,6 +293,7 @@ contract FITzOnWearable is Initializable,
             internal virtual
             override(ERC721Upgradeable,
                      ERC721RoyaltyUpgradeable) {
+        _resetTokenRoyalty(tokenId);
         return super._burn(tokenId);
     }
 
