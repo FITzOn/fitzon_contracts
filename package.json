@@ -10,15 +10,15 @@
   },
   "dependencies": {},
   "devDependencies": {
-    "@openzeppelin/contracts": "^4.6.0",
-    "@openzeppelin/contracts-upgradeable": "^4.6.0",
+    "@openzeppelin/contracts": "^4.7.3",
+    "@openzeppelin/contracts-upgradeable": "^4.7.3",
     "@openzeppelin/test-helpers": "^0.5.15",
     "@openzeppelin/truffle-upgrades": "^1.15.0",
     "@truffle/hdwallet-provider": "^2.0.9",
     "eslint": "^8.18.0",
     "eslint-plugin-truffle": "^0.3.1",
     "solhint": "^3.3.7",
-    "truffle": "^5.5.18",
+    "truffle": "^5.5.30",
     "truffle-contract-size": "^2.0.1",
     "truffle-plugin-verify": "^0.5.26"
   }
