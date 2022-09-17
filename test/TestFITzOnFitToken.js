@@ -5,6 +5,8 @@ const token = artifacts.require('FITzOnFitToken');
 contract('FITzOnFitToken', (accounts) => {
   const owner = accounts[0];
   const other1 = accounts[1];
+  const other2 = accounts[2];
+  const other3 = accounts[3];
 
   before(async () => {
     this.tokenInstance = await token.deployed();
@@ -30,6 +32,30 @@ contract('FITzOnFitToken', (accounts) => {
     await this.tokenInstance.setNameAndSymbol('FITzOnFIT', 'FIT');
     assert.equal((await this.tokenInstance.name()).toString(), 'FITzOnFIT');
     assert.equal((await this.tokenInstance.symbol()).toString(), 'FIT');
+  });
+
+  it('Pause/Unpause', async () => {
+    await this.tokenInstance.mint(other2, 1, { from: owner });
+    await this.tokenInstance.pause();
+    await expectRevert(this.tokenInstance.mint(other2, 1, { from: owner }), 'ERC20Pausable: token transfer while paused');
+    await this.tokenInstance.unpause();
+    await this.tokenInstance.mint(other2, 1, { from: owner });
+    assert.equal((await this.tokenInstance.balanceOf(other2)).toNumber(), 2, 'Balance should be 2 after mint');
+  });
+
+  it('Burn', async () => {
+    await this.tokenInstance.mint(other3, 1, { from: owner });
+    assert.equal((await this.tokenInstance.balanceOf(other3)).toNumber(), 1, 'Balance should be 1 after mint');
+    await this.tokenInstance.burn(1, { from: other3 });
+    assert.equal((await this.tokenInstance.balanceOf(other3)).toNumber(), 0, 'Balance should be 0 after burn');
+  });
+
+  it('Check owner', async () => {
+    assert.equal(await this.tokenInstance.getOwner(), owner);
+  });
+
+  it('Try to call initilize', async () => {
+    await expectRevert(this.tokenInstance.initialize('NA', 'NA'), 'Initializable: contract is already initialized');
   });
 
   it('Call owner only with other account', async () => {
