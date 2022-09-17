@@ -6,10 +6,12 @@
   "scripts": {
     "lint": "npx solhint 'contracts/**/*.sol'",
     "build": "npx truffle compile",
-    "test": "npx truffle test"
+    "test": "npx hardhat coverage"
   },
   "dependencies": {},
   "devDependencies": {
+    "@nomiclabs/hardhat-truffle5": "^2.0.7",
+    "@nomiclabs/hardhat-web3": "^2.0.0",
     "@openzeppelin/contracts": "^4.7.3",
     "@openzeppelin/contracts-upgradeable": "^4.7.3",
     "@openzeppelin/test-helpers": "^0.5.15",
@@ -17,9 +19,12 @@
     "@truffle/hdwallet-provider": "^2.0.9",
     "eslint": "^8.18.0",
     "eslint-plugin-truffle": "^0.3.1",
+    "hardhat": "^2.11.2",
     "solhint": "^3.3.7",
+    "solidity-coverage": "^0.8.2",
     "truffle": "^5.5.30",
     "truffle-contract-size": "^2.0.1",
-    "truffle-plugin-verify": "^0.5.26"
+    "truffle-plugin-verify": "^0.5.26",
+    "web3": "^1.8.0"
   }
 }

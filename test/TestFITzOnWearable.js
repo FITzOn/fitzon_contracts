@@ -161,6 +161,25 @@ contract('FITzOnWearable', (accounts) => {
     await this.wearableInstance.burn(1001, { from: other2 });
   });
 
+  it('Dev mint but no enough token', async () => {
+    // calc merkle hash
+    const hash1 = ethers.utils.solidityKeccak256(['address'], [other1]);
+    const hash2 = ethers.utils.solidityKeccak256(['address'], [other2]);
+    let root_hash;
+    if (hash1 <= hash2) {
+      root_hash = ethers.utils.solidityKeccak256(['uint256', 'uint256'], [hash1, hash2]);
+    } else {
+      root_hash = ethers.utils.solidityKeccak256(['uint256', 'uint256'], [hash2, hash1]);
+    }
+
+    await this.wearableInstance.setDevMintMerkleRoot(root_hash);
+    await this.wearableInstance.setPreSaleTokenId(1000);
+    await this.wearableInstance.setDevMintConfig(this.currentBlock.timestamp - 1000, 100, web3.utils.toWei('0.02', 'ether'));
+
+    await expectRevert(this.wearableInstance.devMint(other2, 1, [hash1], { from: other2, value: web3.utils.toWei('0.01', 'ether') }), 'Not enough tokens');
+    assert.equal((await this.wearableInstance.balanceOf(other2)).toNumber(), 0, 'Balance should be 0 after mint failed');
+  });
+
   it('Dev mint from other contract', async () => {
     const hash1 = ethers.utils.solidityKeccak256(['address'], [other1]);
 
@@ -915,6 +934,12 @@ contract('FITzOnWearable', (accounts) => {
     currentBalance = await web3.eth.getBalance(owner);
     let withdrawAmount2 = currentBalance - beforeBalance;
     assert.equal(withdrawAmount2 > withdrawAmount, true);
+
+    await this.wearableInstance.burn(102, { from: other4 });
+  });
+
+  it('Withdraw but no enough tokens', async () => {
+    await expectRevert(this.wearableInstance.withdraw(web3.utils.toWei('100', 'ether')), 'Failed to send native token');
   });
 
   it('Set name and symbol', async () => {
@@ -941,6 +966,68 @@ contract('FITzOnWearable', (accounts) => {
     await expectRevert(this.wearableInstance.setPreSaleCMConfig(7, 10, 8, 20, 8, 30, 4), 'Bad start time');
 
     await this.wearableInstance.setPreSalePVConfig(7, 10, 8, 20, 9, 30, 4);
+  });
+
+  it('Get token URI', async () => {
+    await expectRevert(this.wearableInstance.tokenURI(1000), "ERC721Metadata: URI query for nonexistent token");
+
+    // calc merkle hash
+    const hash1 = ethers.utils.solidityKeccak256(['address'], [other1]);
+    const hash2 = ethers.utils.solidityKeccak256(['address'], [other4]);
+    let root_hash;
+    if (hash1 <= hash2) {
+      root_hash = ethers.utils.solidityKeccak256(['uint256', 'uint256'], [hash1, hash2]);
+    } else {
+      root_hash = ethers.utils.solidityKeccak256(['uint256', 'uint256'], [hash2, hash1]);
+    }
+
+    await this.wearableInstance.setFastPassMerkleRoot('0x0000000000000000000000000000000000000000000000000000000000000000');
+    await this.wearableInstance.setPreSaleMerkleRoot(root_hash);
+    await this.wearableInstance.setPreSaleTokenId(1000);
+    await this.wearableInstance.setPreSaleEBConfig(this.currentBlock.timestamp - 1100, 10,
+                                                   this.currentBlock.timestamp - 1000, 100,
+                                                   this.currentBlock.timestamp + 1000, 200,
+                                                   web3.utils.toWei('0.1', 'ether'));
+    await this.wearableInstance.setPreSalePVConfig(this.currentBlock.timestamp + 2900, 210,
+                                                   this.currentBlock.timestamp + 3000, 300,
+                                                   this.currentBlock.timestamp + 4000, 400,
+                                                   web3.utils.toWei('0.4', 'ether'));
+    await this.wearableInstance.setPreSaleCMConfig(this.currentBlock.timestamp + 4900, 410,
+                                                   this.currentBlock.timestamp + 5000, 500,
+                                                   this.currentBlock.timestamp + 6000, 600,
+                                                   web3.utils.toWei('0.6', 'ether'));
+    await this.wearableInstance.preSaleMint(other4, 1, [hash1], { from: other4, value: web3.utils.toWei('0.2', 'ether') });
+    assert.equal((await this.wearableInstance.balanceOf(other4)).toNumber(), 1, 'Balance should be 1 after mint');
+
+    assert.equal(await this.wearableInstance.tokenURI(1000), '');
+    await this.wearableInstance.setBaseURI('https://baseuri/');
+    assert.equal(await this.wearableInstance.tokenURI(1000), 'https://baseuri/1000');
+
+    await this.wearableInstance.burn(1000, { from: other4 });
+  });
+
+  it('Check owner', async () => {
+    assert.equal(await this.wearableInstance.owner(), owner);
+  });
+
+  it('Try to call initilize', async () => {
+    await expectRevert(this.wearableInstance.initialize('NA', 'NA'), 'Initializable: contract is already initialized');
+  });
+
+  it('Check supported interface', async () => {
+    // ERC721
+    assert.equal(await this.wearableInstance.supportsInterface('0x80ac58cd'), true);
+    // ERC721Metadata
+    assert.equal(await this.wearableInstance.supportsInterface('0x5b5e139f'), true);
+    // ERC721Enumerable
+    assert.equal(await this.wearableInstance.supportsInterface('0x780e9d63'), true);
+    // ERC2981
+    assert.equal(await this.wearableInstance.supportsInterface('0x2a55205a'), true);
+
+    // ERC721TokenReceiver
+    assert.equal(await this.wearableInstance.supportsInterface('0x150b7a02'), false);
+    // other interface id
+    assert.equal(await this.wearableInstance.supportsInterface('0x01020304'), false);
   });
 
   it('Call owner only with other account', async () => {
