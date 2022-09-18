@@ -1,7 +1,7 @@
 {
-  "name": "fition_contracts",
+  "name": "fitzon_contracts",
   "version": "1.0.0",
-  "description": "Smart contracts for Fition",
+  "description": "Smart contracts for FITzOn",
   "author": "Jones Chi",
   "scripts": {
     "lint": "npx solhint 'contracts/**/*.sol'",
