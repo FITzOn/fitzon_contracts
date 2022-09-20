@@ -30,10 +30,8 @@ contract FITzOnWearable is Initializable,
     struct PreSaleConfig {
         uint32 fpStartTime;
         uint16 fpQuantity;
-        uint32 s1StartTime;
-        uint16 s1Quantity;
-        uint32 s2StartTime;
-        uint16 s2Quantity;
+        uint32 startTime;
+        uint16 quantity;
         uint64 price;
     }
 
@@ -95,15 +93,15 @@ contract FITzOnWearable is Initializable,
         if (preSaleEBConfig.fpStartTime == 0 ||
             block.timestamp < uint256(preSaleEBConfig.fpStartTime)) {
             return 0;
-        } else if (block.timestamp < uint256(preSaleEBConfig.s1StartTime)) {
+        } else if (block.timestamp < uint256(preSaleEBConfig.startTime)) {
             return fastPassMerkleRoot;
         } else if (block.timestamp < uint256(preSalePVConfig.fpStartTime)) {
             return preSaleMerkleRoot;
-        } else if (block.timestamp < uint256(preSalePVConfig.s1StartTime)) {
+        } else if (block.timestamp < uint256(preSalePVConfig.startTime)) {
             return fastPassMerkleRoot;
         } else if (block.timestamp < uint256(preSaleCMConfig.fpStartTime)) {
             return preSaleMerkleRoot;
-        } else if (block.timestamp < uint256(preSaleCMConfig.s1StartTime)) {
+        } else if (block.timestamp < uint256(preSaleCMConfig.startTime)) {
             return fastPassMerkleRoot;
         } else {
             return preSaleMerkleRoot;
@@ -114,24 +112,18 @@ contract FITzOnWearable is Initializable,
         if (preSaleEBConfig.fpStartTime == 0 ||
             block.timestamp < uint256(preSaleEBConfig.fpStartTime)) {
             return 0;
-        } else if (block.timestamp < uint256(preSaleEBConfig.s1StartTime)) {
+        } else if (block.timestamp < uint256(preSaleEBConfig.startTime)) {
             return preSaleEBConfig.fpQuantity;
-        } else if (block.timestamp < uint256(preSaleEBConfig.s2StartTime)) {
-            return preSaleEBConfig.s1Quantity;
         } else if (block.timestamp < uint256(preSalePVConfig.fpStartTime)) {
-            return preSaleEBConfig.s2Quantity;
-        } else if (block.timestamp < uint256(preSalePVConfig.s1StartTime)) {
+            return preSaleEBConfig.quantity;
+        } else if (block.timestamp < uint256(preSalePVConfig.startTime)) {
             return preSalePVConfig.fpQuantity;
-        } else if (block.timestamp < uint256(preSalePVConfig.s2StartTime)) {
-            return preSalePVConfig.s1Quantity;
         } else if (block.timestamp < uint256(preSaleCMConfig.fpStartTime)) {
-            return preSalePVConfig.s2Quantity;
-        } else if (block.timestamp < uint256(preSaleCMConfig.s1StartTime)) {
+            return preSalePVConfig.quantity;
+        } else if (block.timestamp < uint256(preSaleCMConfig.startTime)) {
             return preSaleCMConfig.fpQuantity;
-        } else if (block.timestamp < uint256(preSaleCMConfig.s2StartTime)) {
-            return preSaleCMConfig.s1Quantity;
         } else {
-            return preSaleCMConfig.s2Quantity;
+            return preSaleCMConfig.quantity;
         }
     }
 
@@ -160,21 +152,18 @@ contract FITzOnWearable is Initializable,
     function setPreSaleEBConfig(
       uint32 fpStartTime,
       uint16 fpQuantity,
-      uint32 s1StartTime,
-      uint16 s1Quantity,
-      uint32 s2StartTime,
-      uint16 s2Quantity,
+      uint32 startTime,
+      uint16 quantity,
       uint64 price
     ) external onlyOwner {
-        require(fpStartTime < s1StartTime && s1StartTime < s2StartTime, "Bad start time");
+        require(fpStartTime < startTime, "Bad start time");
+        require(fpQuantity < quantity, "Bad quantity");
 
         preSaleEBConfig = PreSaleConfig(
             fpStartTime,
             fpQuantity,
-            s1StartTime,
-            s1Quantity,
-            s2StartTime,
-            s2Quantity,
+            startTime,
+            quantity,
             price
         );
     }
@@ -182,22 +171,19 @@ contract FITzOnWearable is Initializable,
     function setPreSalePVConfig(
       uint32 fpStartTime,
       uint16 fpQuantity,
-      uint32 s1StartTime,
-      uint16 s1Quantity,
-      uint32 s2StartTime,
-      uint16 s2Quantity,
+      uint32 startTime,
+      uint16 quantity,
       uint64 price
     ) external onlyOwner {
-        require(fpStartTime < s1StartTime && s1StartTime < s2StartTime, "Bad start time");
-        require(fpStartTime > preSaleEBConfig.s2StartTime, "Start time should later than early bird");
+        require(fpStartTime < startTime, "Bad start time");
+        require(fpQuantity < quantity, "Bad quantity");
+        require(fpStartTime > preSaleEBConfig.startTime, "Start time should later than early bird");
 
         preSalePVConfig = PreSaleConfig(
             fpStartTime,
             fpQuantity,
-            s1StartTime,
-            s1Quantity,
-            s2StartTime,
-            s2Quantity,
+            startTime,
+            quantity,
             price
         );
     }
@@ -205,22 +191,19 @@ contract FITzOnWearable is Initializable,
     function setPreSaleCMConfig(
       uint32 fpStartTime,
       uint16 fpQuantity,
-      uint32 s1StartTime,
-      uint16 s1Quantity,
-      uint32 s2StartTime,
-      uint16 s2Quantity,
+      uint32 startTime,
+      uint16 quantity,
       uint64 price
     ) external onlyOwner {
-        require(fpStartTime < s1StartTime && s1StartTime < s2StartTime, "Bad start time");
-        require(fpStartTime > preSalePVConfig.s2StartTime, "Start time should later than private");
+        require(fpStartTime < startTime, "Bad start time");
+        require(fpQuantity < quantity, "Bad quantity");
+        require(fpStartTime > preSalePVConfig.startTime, "Start time should later than private");
 
         preSaleCMConfig = PreSaleConfig(
             fpStartTime,
             fpQuantity,
-            s1StartTime,
-            s1Quantity,
-            s2StartTime,
-            s2Quantity,
+            startTime,
+            quantity,
             price
         );
     }
