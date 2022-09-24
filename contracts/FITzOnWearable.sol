@@ -39,6 +39,7 @@ contract FITzOnWearable is Initializable,
     PreSaleConfig public preSaleEBConfig;
     PreSaleConfig public preSalePVConfig;
     PreSaleConfig public preSaleCMConfig;
+    mapping(address => uint256) private _preSaleMintAmounts;
 
     function initialize(string memory __name, string memory __symbol) public initializer {
         __Ownable_init();
@@ -62,12 +63,13 @@ contract FITzOnWearable is Initializable,
         require(totalSupply() + quantity <= devMintConfig.quantity, "Reached max supply");
         require(_verify(proof, devMintMerkleRoot, _leaf(to)), "Invalid merkle proof");
         require(devMintConfig.price * quantity <= msg.value, "Not enough tokens");
-        require(balanceOf(to) + quantity <= 2, "Can only mint max 2 NFTs");
+        require(_preSaleMintAmounts[to] + quantity <= 2, "Can only mint max 2 NFTs");
 
         for (uint256 i = 0; i < quantity; i++) {
             _safeMint(to, _preSaleTokenId);
             _preSaleTokenId ++;
         }
+        _preSaleMintAmounts[to] += quantity;
     }
 
     function preSaleMint(address to, uint256 quantity, bytes32[] calldata proof) external payable {
@@ -76,12 +78,13 @@ contract FITzOnWearable is Initializable,
         require(totalSupply() + quantity <= preSaleSupply(), "Reached max supply");
         require(_verify(proof, preSaleRoot(), _leaf(to)), "Invalid merkle proof");
         require(preSalePrice() * quantity <= msg.value, "Not enough tokens");
-        require(balanceOf(to) + quantity <= 5, "Can only mint max 5 NFTs");
+        require(_preSaleMintAmounts[to] + quantity <= 5, "Can only mint max 5 NFTs");
 
         for (uint256 i = 0; i < quantity; i++) {
             _safeMint(to, _preSaleTokenId);
             _preSaleTokenId ++;
         }
+        _preSaleMintAmounts[to] += quantity;
     }
 
     function isPublicSaleStarted() public view returns (bool) {
@@ -135,6 +138,10 @@ contract FITzOnWearable is Initializable,
         } else {
             return preSaleEBConfig.price;
         }
+    }
+
+    function preSaleMintAmount(address addr) external view returns (uint256) {
+        return _preSaleMintAmounts[addr];
     }
 
     function setDevMintConfig(
