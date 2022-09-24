@@ -283,7 +283,6 @@ contract FITzOnWearable is Initializable,
             internal virtual
             override(ERC721Upgradeable,
                      ERC721RoyaltyUpgradeable) {
-        _resetTokenRoyalty(tokenId);
         return super._burn(tokenId);
     }
 
