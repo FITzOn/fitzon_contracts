@@ -39,7 +39,9 @@ contract FITzOnWearable is Initializable,
     PreSaleConfig public preSaleEBConfig;
     PreSaleConfig public preSalePVConfig;
     PreSaleConfig public preSaleCMConfig;
+    mapping(address => uint256) private _devMintAmounts;
     mapping(address => uint256) private _preSaleMintAmounts;
+    uint256 public maxSupply;
 
     function initialize(string memory __name, string memory __symbol) public initializer {
         __Ownable_init();
@@ -53,6 +55,7 @@ contract FITzOnWearable is Initializable,
     }
 
     function mint(address to, uint256 tokenId) external onlyOwner {
+        require(totalSupply() < maxSupply, "Reached max supply");
         _safeMint(to, tokenId);
     }
 
@@ -61,21 +64,23 @@ contract FITzOnWearable is Initializable,
         require(devMintConfig.startTime != 0, "Dev mint is not started");
         require(block.timestamp >= devMintConfig.startTime, "Dev mint is not started");
         require(totalSupply() + quantity <= devMintConfig.quantity, "Reached max supply");
+        require(totalSupply() + quantity <= maxSupply, "Reached max supply");
         require(_verify(proof, devMintMerkleRoot, _leaf(to)), "Invalid merkle proof");
         require(devMintConfig.price * quantity <= msg.value, "Not enough tokens");
-        require(_preSaleMintAmounts[to] + quantity <= 2, "Can only mint max 2 NFTs");
+        require(_devMintAmounts[to] + quantity <= 2, "Can only mint max 2 NFTs");
 
         for (uint256 i = 0; i < quantity; i++) {
             _safeMint(to, _preSaleTokenId);
             _preSaleTokenId ++;
         }
-        _preSaleMintAmounts[to] += quantity;
+        _devMintAmounts[to] += quantity;
     }
 
     function preSaleMint(address to, uint256 quantity, bytes32[] calldata proof) external payable {
         require(tx.origin == msg.sender, "The caller is another contract");
         require(isPublicSaleStarted(), "Public mint is not started");
         require(totalSupply() + quantity <= preSaleSupply(), "Reached max supply");
+        require(totalSupply() + quantity <= maxSupply, "Reached max supply");
         require(_verify(proof, preSaleRoot(), _leaf(to)), "Invalid merkle proof");
         require(preSalePrice() * quantity <= msg.value, "Not enough tokens");
         require(_preSaleMintAmounts[to] + quantity <= 5, "Can only mint max 5 NFTs");
@@ -138,6 +143,10 @@ contract FITzOnWearable is Initializable,
         } else {
             return preSaleEBConfig.price;
         }
+    }
+
+    function devMintAmount(address addr) external view returns (uint256) {
+        return _devMintAmounts[addr];
     }
 
     function preSaleMintAmount(address addr) external view returns (uint256) {
@@ -237,6 +246,10 @@ contract FITzOnWearable is Initializable,
 
     function _verify(bytes32[] memory proof, bytes32 merkleRoot, bytes32 leaf) private pure returns (bool) {
         return MerkleProofUpgradeable.verify(proof, merkleRoot, leaf);
+    }
+
+    function setMaxSupply(uint256 supply) external onlyOwner {
+        maxSupply = supply;
     }
 
     function setDefaultRoyalty(address receiver, uint96 feeNumerator) external onlyOwner {
